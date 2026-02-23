@@ -34,7 +34,7 @@ class Meals(commands.Cog):
             return "Spring Break 🌸"
         return None
 
-    @app_commands.command(name="today", description="Get today's menu from Supabase")
+    @app_commands.command(name="today", description="Get today's menu")
     async def today(self, interaction: discord.Interaction):
         now = datetime.now(local_tz)
 
