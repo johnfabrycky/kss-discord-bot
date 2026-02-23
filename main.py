@@ -18,7 +18,7 @@ supabase = create_client(url, key)
 INITIAL_EXTENSIONS = [
     'cogs.meals',
     'cogs.movies',
-    # 'cogs.lates',
+    'cogs.lates',
     'cogs.parking',
 ]
 
@@ -88,16 +88,16 @@ async def help_command(interaction: discord.Interaction):
     )
 
     # Lates Section
-    # embed.add_field(
-    #     name="🍱 Late Plates",
-    #     value=(
-    #         "`/late_me` - Request a late (Temporary or Permanent).\n"
-    #         "`/view_lates` - See lates for your house group.\n"
-    #         "`/my_lates` - View all your active late requests.\n"
-    #         "`/clear_late` - Remove a specific late request."
-    #     ),
-    #     inline=False
-    # )
+    embed.add_field(
+        name="🍱 Late Plates",
+        value=(
+            "`/late_me` - Request a late (Temporary or Permanent).\n"
+            "`/view_lates` - See lates for your house group.\n"
+            "`/my_lates` - View all your active late requests.\n"
+            "`/clear_late` - Remove a specific late request."
+        ),
+        inline=False
+    )
 
     # Movie Section (Updated to all Slash)
     embed.add_field(
