@@ -2,6 +2,8 @@
 
 A multi-purpose utility bot for the KSS community, managing parking, meal schedules, late plates, and social movie sessions.
 
+# FOR APRIL FOOLS WE ARE GOING TO RANDOMLY PING SOMEONE EVERY 3-6 MINUTES FOR THE WHOLE 24 HOURS
+
 ## 🚀 Active Functionality
 
 ### 🚗 Parking Utility
