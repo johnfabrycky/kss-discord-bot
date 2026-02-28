@@ -37,6 +37,41 @@ class Shifts(commands.Cog):
         # Discord limits autocomplete to 25 choices
         return choices[:25]
 
+    async def target_user_autocomplete(self, interaction: discord.Interaction, current: str):
+        user_id = str(interaction.user.id)
+
+        # 1. Fetch all shifts that are either claimed by someone or offered by a seller
+        # We need this to see who actually HAS a shift to trade
+        response = self.supabase.table("shifts").select("seller_id, seller_name, claimed_by_id").execute()
+
+        # 2. Use a dictionary to store unique users {user_id: user_name}
+        valid_targets = {}
+
+        for s in response.data:
+            sid = s['seller_id']
+            sname = s['seller_name']
+            cid = s['claimed_by_id']
+
+            # Case A: If the shift is unclaimed, the seller is the 'owner'
+            if cid is None and sid != user_id:
+                valid_targets[sid] = sname
+            # Case B: If the shift is claimed, the claimer is the 'owner'
+            # Note: We can't get the claimer's name from the DB easily here
+            # so we'll focus on sellers/known names or use discord cache
+            elif cid is not None and cid != user_id:
+                # We'll try to get the member name from Discord's cache
+                member = interaction.guild.get_member(int(cid))
+                if member:
+                    valid_targets[cid] = member.display_name
+
+        # 3. Filter based on what the user is typing
+        choices = []
+        for uid, name in valid_targets.items():
+            if current.lower() in name.lower():
+                choices.append(app_commands.Choice(name=name, value=uid))
+
+        return choices[:25]
+
     @app_commands.command(name="offer_shift",
                           description="Offer a shift (if you claimed it, this puts it back up for hire)")
     @app_commands.choices(
@@ -78,27 +113,15 @@ class Shifts(commands.Cog):
             self.supabase.table("shifts").insert(payload).execute()
             await interaction.response.send_message(f"✅ **Shift Posted!** {shift_type} on {day} for ${price:.2f}.")
 
-    # async def my_owned_shifts_autocomplete(self, interaction: discord.Interaction, current: str):
-    #     user_id = str(interaction.user.id)
-    #     # Fetch shifts where the user is either the original seller (unclaimed) or the current claimer
-    #     response = (self.supabase.table("shifts")
-    #                 .select("*")
-    #                 .or_(f"claimed_by_id.eq.{user_id},and(seller_id.eq.{user_id},claimed_by_id.is.null)")
-    #                 .execute())
-    #
-    #     choices = []
-    #     for s in response.data:
-    #         label = f"{s['shift_type']} ({s['day_of_week']})"
-    #         if current.lower() in label.lower():
-    #             choices.append(app_commands.Choice(name=label, value=str(s['id'])))
-    #     return choices[:25]
-
     # 1. Autocomplete for shifts the Proposer CURRENTLY OWNS
     async def my_owned_shifts_autocomplete(self, interaction: discord.Interaction, current: str):
         user_id = str(interaction.user.id)
         # Finds shifts where you are the current owner or original seller (if unclaimed)
-        filter_str = f"claimed_by_id.eq.{user_id},and(seller_id.eq.{user_id},claimed_by_id.is.null)"
-        response = self.supabase.table("shifts").select("*").or_(filter_str).execute()
+        response = (self.supabase.table("shifts")
+                .select("*")
+                .eq("seller_id", user_id)
+                .is_("claimed_by_id", "null")
+                .execute())
 
         return [
             app_commands.Choice(name=f"{s['shift_type']} ({s['day_of_week']})", value=str(s['id']))
@@ -106,39 +129,24 @@ class Shifts(commands.Cog):
         ][:25]
 
     # 2. Autocomplete for shifts the TARGET USER currently owns
-    # async def target_shifts_autocomplete(self, interaction: discord.Interaction, current: str):
-    #     # Look at the 'target_user' argument in the command
-    #     target_id = interaction.namespace.target_user
-    #     if not target_id:
-    #         return []
-    #
-    #     # Find shifts currently claimed/owned by the target
-    #     response = self.supabase.table("shifts").select("*").eq("claimed_by_id", str(target_id.id)).execute()
-    #
-    #     # Ensure your autocomplete choices look like this:
-    #     return [
-    #         app_commands.Choice(name=f"{s['shift_type']} ({s['day_of_week']})", value=str(s['id']))
-    #         for s in response.data
-    #         if current.lower() in f"{s['shift_type']} {s['day_of_week']}".lower()
-    #     ][:25]
-
     async def target_shifts_autocomplete(self, interaction: discord.Interaction, current: str):
+        # 1. Grab the target from the namespace
         target = interaction.namespace.target_user
-        if not target:
+
+        # 2. Logic Check: If no user is selected OR if the user is YOU, return nothing
+        if not target or str(target.id if hasattr(target, 'id') else target) == str(interaction.user.id):
             return []
 
-        # Handle both Member object and raw ID string/int
+        # 3. Extract the ID safely
         target_id = str(target.id) if hasattr(target, 'id') else str(target)
 
         try:
-            # We need to find shifts where target_id is the owner.
-            # This means (claimed_by_id == target_id) OR (seller_id == target_id AND claimed_by_id is NULL)
-            filter_str = f"claimed_by_id.eq.{target_id},and(seller_id.eq.{target_id},claimed_by_id.is.null)"
-
+            # Find shifts where the target is the owner OR the unclaimed seller
             response = (self.supabase.table("shifts")
-                        .select("*")
-                        .or_(filter_str)
-                        .execute())
+                     .select("*")
+                     .eq("seller_id", target_id)
+                     .is_("claimed_by_id", "null")
+                     .execute())
 
             return [
                 app_commands.Choice(name=f"{s['shift_type']} ({s['day_of_week']})", value=str(s['id']))
@@ -149,28 +157,9 @@ class Shifts(commands.Cog):
             print(f"⚠️ Target Autocomplete Error: {e}")
             return []
 
-    # @app_commands.command(name="swap_shift", description="Request to trade one of your shifts with someone else")
-    # @app_commands.autocomplete(my_shift=my_owned_shifts_autocomplete)
-    # async def swap(self, interaction: discord.Interaction, target_user: discord.Member, my_shift: str):
-    #     if target_user.id == interaction.user.id:
-    #         return await interaction.response.send_message("You can't swap with yourself!", ephemeral=True)
-    #
-    #     # Get the details of the shift you are offering
-    #     res = self.supabase.table("shifts").select("*").eq("id", int(my_shift)).execute()
-    #     if not res.data:
-    #         return await interaction.response.send_message("❌ Shift not found.", ephemeral=True)
-    #
-    #     shift_data = res.data[0]
-    #     view = SwapView(interaction.user, target_user, int(my_shift), self.supabase)
-    #
-    #     await interaction.response.send_message(
-    #         f"📩 {target_user.mention}, **{interaction.user.display_name}** wants to trade their **{shift_data['shift_type']} ({shift_data['day_of_week']})** for one of yours. Do you accept?",
-    #         view=view
-    #     )
-
     @app_commands.command(name="swap_shift", description="Propose a specific 1-for-1 shift trade")
-    @app_commands.autocomplete(my_shift=my_owned_shifts_autocomplete, their_shift=target_shifts_autocomplete)
-    async def swap(self, interaction: discord.Interaction, target_user: discord.Member, my_shift: str,
+    @app_commands.autocomplete(my_shift=my_owned_shifts_autocomplete, target_user=target_user_autocomplete, their_shift=target_shifts_autocomplete)
+    async def swap(self, interaction: discord.Interaction, target_user: str, my_shift: str,
                    their_shift: str):
         # 1. Validation Guard: Check if inputs are actually numeric IDs
         if not (my_shift.isdigit() and their_shift.isdigit()):
@@ -178,6 +167,16 @@ class Shifts(commands.Cog):
                 "❌ Please select a shift from the search results rather than typing it manually.",
                 ephemeral=True
             )
+
+        target_id = int(target_user)
+        target_member = interaction.guild.get_member(target_id)
+
+        if target_member is None:
+            try:
+                target_member = await interaction.guild.fetch_member(target_id)
+            except discord.NotFound:
+                return await interaction.response.send_message("❌ Could not find that user in this server.",
+                                                               ephemeral=True)
 
         # 2. Proceed with the rest of your logic using int() safely
         res_p = self.supabase.table("shifts").select("*").eq("id", int(my_shift)).execute()
@@ -191,20 +190,20 @@ class Shifts(commands.Cog):
         t_data = res_t.data[0]
 
         # Updated Ownership Check
-        target_id_str = str(target_user.id)
+        target_id_str = str(target_member.id)
         is_claimer = t_data.get('claimed_by_id') == target_id_str
         is_unclaimed_seller = t_data.get('seller_id') == target_id_str and t_data.get('claimed_by_id') is None
 
         if not (is_claimer or is_unclaimed_seller):
             return await interaction.response.send_message(
-                f"❌ {target_user.display_name} doesn't seem to own that shift anymore.",
+                f"❌ {target_member.display_name} doesn't seem to own that shift anymore.",
                 ephemeral=True
             )
 
         view = SwapView(interaction.user, target_user, p_data, t_data, self.supabase)
 
         await interaction.response.send_message(
-            f"📩 {target_user.mention}, **{interaction.user.display_name}** proposes a swap:\n"
+            f"📩 {target_member.mention}, **{interaction.user.display_name}** proposes a swap:\n"
             f"⬆️ **Giving:** {p_data['shift_type']} ({p_data['day_of_week']})\n"
             f"⬇️ **Taking:** {t_data['shift_type']} ({t_data['day_of_week']})\n"
             f"Do you accept?",
@@ -213,21 +212,32 @@ class Shifts(commands.Cog):
 
     @app_commands.command(name="view_market", description="See all available shifts for hire")
     async def view_market(self, interaction: discord.Interaction):
-        response = self.supabase.table("shifts").select("*").is_("claimed_by_id", "null").execute()
-        available = response.data
+        # 1. Immediately tell Discord to wait (gives you more than 3 seconds)
+        await interaction.response.defer(ephemeral=True)
 
-        if not available:
-            return await interaction.response.send_message("There are no shifts currently available.", ephemeral=True)
+        try:
+            # 2. Perform the database work
+            response = self.supabase.table("shifts").select("*").is_("claimed_by_id", "null").execute()
+            available = response.data
 
-        embed = discord.Embed(title="🛒 Available Shifts", color=discord.Color.green())
-        for s in available:
-            # We display the seller_name here so users know who they'd be claiming from
-            embed.add_field(
-                name=f"{s['shift_type']} - {s['day_of_week']}",
-                value=f"💰 **Bounty:** ${s['price']:.2f}\n👤 **Offered by:** {s['seller_name']}",
-                inline=False
-            )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+            if not available:
+                # Use followup.send because response has already been deferred
+                return await interaction.followup.send("There are no shifts currently available.", ephemeral=True)
+
+            embed = discord.Embed(title="🛒 Available Shifts", color=discord.Color.green())
+            for s in available:
+                embed.add_field(
+                    name=f"{s['shift_type']} - {s['day_of_week']}",
+                    value=f"💰 **Bounty:** ${s['price']:.2f}\n👤 **Offered by:** {s['seller_name']}",
+                    inline=False
+                )
+
+            # 3. Use followup.send to deliver the final embed
+            await interaction.followup.send(embed=embed, ephemeral=True)
+
+        except Exception as e:
+            print(f"Error in view_market: {e}")
+            await interaction.followup.send("❌ An error occurred while fetching the market data.", ephemeral=True)
 
     @app_commands.command(name="claim_shift", description="Take a shift from the market")
     @app_commands.autocomplete(shift=shift_autocomplete)
