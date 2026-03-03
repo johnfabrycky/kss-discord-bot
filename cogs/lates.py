@@ -10,6 +10,7 @@ from datetime import datetime
 from supabase import create_client
 import pytz
 from flask.cli import load_dotenv
+from datetime import time
 
 local_tz = pytz.timezone('America/Chicago')
 load_dotenv()
@@ -36,13 +37,23 @@ class Lates(commands.Cog):
             return "suttonite"
         return None
 
-    @tasks.loop(hours=24)
+    # Anchors the task to run every day at 11:00 PM
+    @tasks.loop(time=time(hour=23, minute=0, second=0))
     async def cleanup_temporary_lates(self):
-        """Deletes all temporary lates on Monday morning."""
+        """Deletes all temporary lates on Saturday night."""
         now = datetime.now(local_tz)
-        if now.weekday() == 0:  # Monday
-            supabase.table("lates").delete().eq("is_permanent", False).execute()
-            print("🧹 Cleaned up weekly temporary lates.")
+
+        # Check if today is Saturday (5)
+        if now.weekday() == 5:
+            try:
+                res = supabase.table("lates").delete() \
+                    .eq("is_permanent", False) \
+                    .execute()
+
+                count = len(res.data) if res.data else 0
+                print(f"🧹 Saturday Night Cleanup: Removed {count} temporary lates.")
+            except Exception as e:
+                print(f"❌ Cleanup failed: {e}")
 
     @app_commands.command(name="view_lates", description="See lates for your house")
     @app_commands.choices(
