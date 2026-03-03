@@ -69,7 +69,8 @@ async def help_command(interaction: discord.Interaction):
     embed = discord.Embed(
         title="🤖 Bot Command Center",
         #description="I manage movie sessions, UIUC meal schedules, and late plates!",
-        description="I manage parking, movie sessions, meal schedules",
+        # description="I manage parking, movie sessions, meal schedules",
+        description="I manage parking, late plates, movie sessions, meal schedules, meal shifts, and feedback!",
         color=discord.Color.green()
     )
 
