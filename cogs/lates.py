@@ -8,6 +8,7 @@ from discord import app_commands
 from datetime import datetime
 from supabase import create_client
 from flask.cli import load_dotenv
+from datetime import time
 
 local_tz = pytz.timezone('America/Chicago')
 load_dotenv()
@@ -34,13 +35,23 @@ class Lates(commands.Cog):
             return "suttonite"
         return None
 
-    @tasks.loop(hours=24)
+    # Anchors the task to run every day at 11:00 PM
+    @tasks.loop(time=time(hour=23, minute=0, second=0))
     async def cleanup_temporary_lates(self):
-        """Deletes all temporary lates on Monday morning."""
+        """Deletes all temporary lates on Saturday night."""
         now = datetime.now(local_tz)
-        if now.weekday() == 0:  # Monday
-            supabase.table("lates").delete().eq("is_permanent", False).execute()
-            print("🧹 Cleaned up weekly temporary lates.")
+
+        # Check if today is Saturday (5)
+        if now.weekday() == 5:
+            try:
+                res = supabase.table("lates").delete() \
+                    .eq("is_permanent", False) \
+                    .execute()
+
+                count = len(res.data) if res.data else 0
+                print(f"🧹 Saturday Night Cleanup: Removed {count} temporary lates.")
+            except Exception as e:
+                print(f"❌ Cleanup failed: {e}")
 
     @app_commands.command(name="view_lates", description="See lates for your house")
     @app_commands.choices(
@@ -114,26 +125,70 @@ class Lates(commands.Cog):
         await interaction.response.send_message(f"✅ Late recorded for **{day} {meal}** ({house.capitalize()}).",
                                                 ephemeral=True)
 
-    @app_commands.command(name="clear_late", description="Remove your late request")
-    @app_commands.choices(
-        day=[app_commands.Choice(name=d, value=d) for d in
-             ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]],
-        meal=[app_commands.Choice(name="Lunch", value="Lunch"), app_commands.Choice(name="Dinner", value="Dinner")]
-    )
-    async def clear_late(self, interaction: discord.Interaction, day: str, meal: str):
+    async def late_days_autocomplete(
+            self,
+            interaction: discord.Interaction,
+            current: str,
+    ) -> list[app_commands.Choice[str]]:
         user_id = str(interaction.user.id)
 
-        # Perform the deletion in Supabase directly
-        res = supabase.table("lates").delete() \
-            .eq("user_id", user_id) \
-            .eq("day_of_week", day) \
-            .eq("meal", meal) \
-            .execute()
+        # Fetch all lates for this specific user
+        res = supabase.table("lates").select("day_of_week", "meal").eq("user_id", user_id).execute()
+
+        # Format the choices (e.g., "Monday - Dinner")
+        choices = [
+            app_commands.Choice(name=f"{row['day_of_week']} {row['meal']}", value=f"{row['day_of_week']}|{row['meal']}")
+            for row in res.data
+            if current.lower() in f"{row['day_of_week']} {row['meal']}".lower()
+        ]
+
+        return choices[:25]  # Discord limits autocomplete to 25 choices
+
+    @app_commands.command(name="clear_late", description="Select an existing late request to remove")
+    @app_commands.autocomplete(selection=late_days_autocomplete)
+    async def clear_late(self, interaction: discord.Interaction, selection: str):
+        user_id = str(interaction.user.id)
+
+        # Split the value back into day and meal
+        try:
+            day, meal = selection.split("|")
+        except ValueError:
+            await interaction.response.send_message("❌ Invalid selection.", ephemeral=True)
+            return
+
+        # Perform the deletion
+        res = (supabase.table("lates").delete()
+            .eq("user_id", user_id)
+            .eq("day_of_week", day)
+            .eq("meal", meal)
+            .execute())
 
         if res.data:
-            await interaction.response.send_message(f"🗑️ Your late for {day} {meal} has been cleared.", ephemeral=True)
+            await interaction.response.send_message(f"🗑️ Your {day} {meal} late has been cleared.", ephemeral=True)
         else:
-            await interaction.response.send_message("❌ No late found to clear.", ephemeral=True)
+            await interaction.response.send_message("❌ Could not find that late. It may have already been cleared.",
+                                                    ephemeral=True)
+
+    # @app_commands.command(name="clear_late", description="Remove your late request")
+    # @app_commands.choices(
+    #     day=[app_commands.Choice(name=d, value=d) for d in
+    #          ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]],
+    #     meal=[app_commands.Choice(name="Lunch", value="Lunch"), app_commands.Choice(name="Dinner", value="Dinner")]
+    # )
+    # async def clear_late(self, interaction: discord.Interaction, day: str, meal: str):
+    #     user_id = str(interaction.user.id)
+    #
+    #     # Perform the deletion in Supabase directly
+    #     res = supabase.table("lates").delete() \
+    #         .eq("user_id", user_id) \
+    #         .eq("day_of_week", day) \
+    #         .eq("meal", meal) \
+    #         .execute()
+    #
+    #     if res.data:
+    #         await interaction.response.send_message(f"🗑️ Your late for {day} {meal} has been cleared.", ephemeral=True)
+    #     else:
+    #         await interaction.response.send_message("❌ No late found to clear.", ephemeral=True)
 
     @app_commands.command(name="my_lates", description="See all the meals you've requested lates for")
     async def my_lates(self, interaction: discord.Interaction):

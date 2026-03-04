@@ -82,7 +82,7 @@ async def sync_global(ctx):
 async def help_command(interaction: discord.Interaction):
     embed = discord.Embed(
         title="🤖 Bot Command Center",
-        description="I manage parking, movie sessions, meal schedules, and shifts.",
+        description="I manage parking, late plates, movie sessions, meal schedules, meal shifts, and feedback!",
         color=discord.Color.green()
     )
 
