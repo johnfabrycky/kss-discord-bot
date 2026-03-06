@@ -99,7 +99,7 @@ class Lates(commands.Cog):
              ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]],
         meal=[app_commands.Choice(name="Lunch", value="Lunch"), app_commands.Choice(name="Dinner", value="Dinner")]
     )
-    async def late_me(self, interaction: discord.Interaction, day: str, meal: str, permanent: bool = False):
+    async def late_me(self, interaction: discord.Interaction, day: str, meal: str, permanent: bool):
         # Automatically determine role
         house = self._get_user_house(interaction.user)
         if not house:
@@ -171,26 +171,6 @@ class Lates(commands.Cog):
             await interaction.response.send_message("❌ Could not find that late. It may have already been cleared.",
                                                     ephemeral=True)
 
-    # @app_commands.command(name="clear_late", description="Remove your late request")
-    # @app_commands.choices(
-    #     day=[app_commands.Choice(name=d, value=d) for d in
-    #          ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]],
-    #     meal=[app_commands.Choice(name="Lunch", value="Lunch"), app_commands.Choice(name="Dinner", value="Dinner")]
-    # )
-    # async def clear_late(self, interaction: discord.Interaction, day: str, meal: str):
-    #     user_id = str(interaction.user.id)
-    #
-    #     # Perform the deletion in Supabase directly
-    #     res = supabase.table("lates").delete() \
-    #         .eq("user_id", user_id) \
-    #         .eq("day_of_week", day) \
-    #         .eq("meal", meal) \
-    #         .execute()
-    #
-    #     if res.data:
-    #         await interaction.response.send_message(f"🗑️ Your late for {day} {meal} has been cleared.", ephemeral=True)
-    #     else:
-    #         await interaction.response.send_message("❌ No late found to clear.", ephemeral=True)
 
     @app_commands.command(name="my_lates", description="See all the meals you've requested lates for")
     async def my_lates(self, interaction: discord.Interaction):
