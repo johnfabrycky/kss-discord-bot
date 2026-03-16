@@ -95,9 +95,10 @@ class Lates(commands.Cog):
     @app_commands.choices(
         day=[app_commands.Choice(name=d, value=d) for d in
              ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]],
-        meal=[app_commands.Choice(name="Lunch", value="Lunch"), app_commands.Choice(name="Dinner", value="Dinner")]
+        meal=[app_commands.Choice(name="Lunch", value="Lunch"), app_commands.Choice(name="Dinner", value="Dinner")],
+        duration = [app_commands.Choice(name="Permanent", value="True"), app_commands.Choice(name="Temporary", value="False")],
     )
-    async def late_me(self, interaction: discord.Interaction, day: str, meal: str, permanent: bool):
+    async def late_me(self, interaction: discord.Interaction, day: str, meal: str, duration: str):
         # Automatically determine role
         house = self._get_user_house(interaction.user)
         if not house:
@@ -105,6 +106,8 @@ class Lates(commands.Cog):
                 "❌ You must have a house role (Koinonian, Stratfordite, or Suttonite) to use this.", ephemeral=True)
 
         user_id = str(interaction.user.id)
+
+        is_permanent = duration == "True"
 
         # Check for existing
         existing = supabase.table("lates").select("*").eq("user_id", user_id).eq("day_of_week", day).eq("meal",
@@ -119,7 +122,7 @@ class Lates(commands.Cog):
             "role": house,  # Automated
             "meal": meal,
             "day_of_week": day,
-            "is_permanent": permanent
+            "is_permanent": is_permanent
         }
         supabase.table("lates").insert(data).execute()
         await interaction.response.send_message(f"✅ Late recorded for **{day} {meal}** ({house.capitalize()}).",
