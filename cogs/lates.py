@@ -36,22 +36,22 @@ class Lates(commands.Cog):
         return None
 
     # Anchors the task to run every day at 11:00 PM
-    @tasks.loop(time=time(hour=23, minute=0, second=0))
+    @tasks.loop(time=time(hour=12, minute=30, second=0))
     async def cleanup_temporary_lates(self):
         """Deletes all temporary lates on Saturday night."""
         now = datetime.now(local_tz)
 
         # Check if today is Saturday (5)
-        if now.weekday() == 5:
+        if now.weekday() == 1:
             try:
                 res = supabase.table("lates").delete() \
                     .eq("is_permanent", False) \
                     .execute()
 
                 count = len(res.data) if res.data else 0
-                print(f"🧹 Saturday Night Cleanup: Removed {count} temporary lates.")
+                print(f"🧹 Saturday Night Cleanup: Removed {count} temporary lates.", flush=True)
             except Exception as e:
-                print(f"❌ Cleanup failed: {e}")
+                print(f"❌ Cleanup failed: {e}", flush=True)
 
     @app_commands.command(name="view_lates", description="See lates for your house")
     @app_commands.choices(
