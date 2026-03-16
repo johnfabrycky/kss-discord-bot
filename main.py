@@ -13,10 +13,10 @@ MY_GUILD = discord.Object(id=GUILD_ID)
 
 INITIAL_EXTENSIONS = [
     'cogs.meals',
-    'cogs.movies',
+    # 'cogs.movies',
     'cogs.lates',
     'cogs.parking',
-    'cogs.shifts',
+    # 'cogs.shifts',
     'cogs.feedback',
 ]
 
@@ -50,6 +50,11 @@ class GeraldBot(commands.Bot):
 
     async def on_ready(self):
         # 3. Cache Initial Data
+        # The 'state' is what actually shows up in the bubble
+        await self.change_presence(
+            activity=discord.CustomActivity(name="Custom Status", state="Enter /help to see what I can do!")
+        )
+
         try:
             response = self.supabase.table("meals").select("*").execute()
             self.meal_cache = response.data
@@ -89,9 +94,9 @@ async def help_command(interaction: discord.Interaction):
     sections = {
         "🚗 Parking": "`/offer_spot`, `/claim_spot`, `/claim_staff`, `/parking_status`, `/cancel`, `/parking_help`",
         "🍱 Lates": "`/late_me`, `/view_lates`, `/my_lates`, `/clear_late`",
-        "🎬 Movies": "`/watch`, `/where`",
+        # "🎬 Movies": "`/watch`, `/where`",
         "🍽️ Meals": "`/today`",
-        "⚖️ Shifts": "`/offer_shift`, `/view_market`, `/claim_shift`, `/swap_shift`, /my_shifts`, `/cancel_shift`",
+        # "⚖️ Shifts": "`/offer_shift`, `/view_market`, `/claim_shift`, `/swap_shift`, /my_shifts`, `/cancel_shift`",
         "📝 Feedback": "`/feedback`",
     }
 
