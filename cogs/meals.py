@@ -34,7 +34,7 @@ class Meals(commands.Cog):
             return "Spring Break 🌸"
         return None
 
-    @app_commands.command(name="today", description="Get today's menu from Supabase")
+    @app_commands.command(name="today", description="Get today's menu")
     async def today(self, interaction: discord.Interaction):
         now = datetime.now(local_tz)
 
@@ -67,7 +67,6 @@ class Meals(commands.Cog):
         )
         embed.add_field(name="☀️ Lunch", value=lunch, inline=False)
         embed.add_field(name="🌙 Dinner", value=dinner, inline=False)
-        embed.set_footer(text="Data provided by Supabase")
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
