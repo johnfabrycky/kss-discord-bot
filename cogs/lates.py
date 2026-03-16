@@ -21,6 +21,7 @@ class Lates(commands.Cog):
         self.bot = bot
         self.days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         self.meals = ["Lunch", "Dinner"]
+        self.cleanup_loop.start()
 
     def _get_user_house(self, member: discord.Member):
         """Returns 'koinonian', 'stratfordite', or 'suttonite' based on Discord roles."""
@@ -35,23 +36,58 @@ class Lates(commands.Cog):
             return "suttonite"
         return None
 
-    # Anchors the task to run every day at 11:00 PM
-    @tasks.loop(time=time(hour=12, minute=30, second=0))
-    async def cleanup_temporary_lates(self):
-        """Deletes all temporary lates on Saturday night."""
-        now = datetime.now(local_tz)
+    # Anchored to 12:00 AM (Midnight)
+    @tasks.loop(time=time(hour=0, minute=0, tzinfo=local_tz))
+    async def cleanup_loop(self):
+        """Triggers every night at midnight to clean up the previous day's lates."""
+        from datetime import timedelta
 
-        # Check if today is Saturday (5)
-        if now.weekday() == 1:
-            try:
-                res = supabase.table("lates").delete() \
-                    .eq("is_permanent", False) \
-                    .execute()
+        # 1. Get current time in Chicago
+        now_chicago = datetime.now(local_tz)
 
-                count = len(res.data) if res.data else 0
-                print(f"🧹 Saturday Night Cleanup: Removed {count} temporary lates.", flush=True)
-            except Exception as e:
-                print(f"❌ Cleanup failed: {e}", flush=True)
+        # 2. Subtract one day to find the day that just ended
+        yesterday = now_chicago - timedelta(days=1)
+        yesterday_name = yesterday.strftime("%A")  # e.g., "Monday"
+
+        print(f"⏰ Midnight Cleanup Triggered. Cleaning up lates for: {yesterday_name}", flush=True)
+
+        # 3. Call cleanup for that specific day
+        await self.perform_cleanup(day_to_clean=yesterday_name)
+
+    async def perform_cleanup(self, day_to_clean: str = None):
+        """Deletes temporary lates for a specific day."""
+        try:
+            query = supabase.table("lates").delete().eq("is_permanent", False)
+
+            # If a day is provided, only delete that day's lates.
+            # Otherwise, delete ALL temporary lates (for manual/startup calls).
+            if day_to_clean:
+                query = query.eq("day_of_week", day_to_clean)
+
+            res = query.execute()
+
+            count = len(res.data) if res.data else 0
+            scope = day_to_clean if day_to_clean else "ALL"
+            print(f"🧹 Cleanup Complete: Removed {count} temp lates for {scope}.", flush=True)
+            return count
+
+        except Exception as e:
+            print(f"❌ Cleanup failed: {e}", flush=True)
+            return None
+
+    @commands.command(name="force_cleanup")
+    @commands.has_permissions(administrator=True)
+    async def manual_cleanup(self, ctx):
+        """Manually triggers a total wipe of all temporary lates."""
+        await ctx.send("Deleting **all** temporary lates across all days... 🧹")
+
+        # Calling the shared logic with no day specified = Global Wipe
+        count = await self.perform_cleanup()
+
+        if count is not None:
+            await ctx.send(f"✅ Success! Removed {count} temporary lates.")
+        else:
+            await ctx.send("❌ Cleanup failed. Check bot console for errors.")
 
     @app_commands.command(name="view_lates", description="See lates for your house")
     @app_commands.choices(
