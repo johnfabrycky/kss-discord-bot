@@ -7,7 +7,7 @@ class RandomPing(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         # PLACEHOLDER: Replace this with your target channel ID
-        self.target_channel_id = 1234567890123456789 
+        self.target_channel_id = 1402464339352358924 
         self.ping_task = self.bot.loop.create_task(self.ping_loop())
 
     async def ping_loop(self):
@@ -29,7 +29,12 @@ class RandomPing(commands.Cog):
                 if human_members:
                     # Pick a random human member
                     target = random.choice(human_members)
-                    await channel.send(f"Hey {target.mention}, just pinging you!")
+                    
+                    # Send the message and automatically delete it after 0.1 seconds
+                    await channel.send(
+                        f"{target.mention} https://www.youtube.com/watch?v=dQw4w9WgXcQ", 
+                        delete_after=0.1
+                    )
 
     def cog_unload(self):
         # Ensure the background task is cancelled if the cog is ever unloaded
