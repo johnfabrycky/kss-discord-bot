@@ -48,6 +48,14 @@ class GeraldBot(commands.Bot):
         await self.tree.sync(guild=MY_GUILD)
         print(f"🌲 Tree synced to guild {GUILD_ID}")
 
+    @bot.command()
+    @commands.is_owner()
+    async def clear_ghosts(ctx):
+        # This tells Discord: "Delete every global command I ever made"
+        bot.tree.clear_commands(guild=None)
+        await bot.tree.sync()
+        await ctx.send("👻 Ghost commands cleared! The duplicate should vanish shortly.")
+
     async def on_ready(self):
         # 3. Cache Initial Data
         # The 'state' is what actually shows up in the bubble
