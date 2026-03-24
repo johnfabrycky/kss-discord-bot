@@ -4,10 +4,13 @@ import random
 import asyncio
 
 class RandomPing(commands.Cog):
+    KOIN_STRAT_SUTTON_CHANNEL_ID = 1402464339352358924
+    RICK_ROLL_YT_VIDEO_LINK = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
     def __init__(self, bot):
         self.bot = bot
         # PLACEHOLDER: Replace this with your target channel ID
-        self.target_channel_id = 1402464339352358924 
+        self.target_channel_id = self.KOIN_STRAT_SUTTON_CHANNEL_ID 
         self.ping_task = self.bot.loop.create_task(self.ping_loop())
 
     async def ping_loop(self):
@@ -15,8 +18,8 @@ class RandomPing(commands.Cog):
         await self.bot.wait_until_ready()
         
         while not self.bot.is_closed():
-            # Generate a random sleep time between 1 and 60 seconds
-            wait_time = random.uniform(1.0, 60.0)
+            # Generate a random sleep time between 5 minutes and 2 hours
+            wait_time = random.uniform(300.0, 7200.0)
             await asyncio.sleep(wait_time)
             
             channel = self.bot.get_channel(self.target_channel_id)
@@ -32,7 +35,7 @@ class RandomPing(commands.Cog):
                     
                     # Send the message and automatically delete it after 0.1 seconds
                     await channel.send(
-                        f"{target.mention} https://www.youtube.com/watch?v=dQw4w9WgXcQ", 
+                        f"{target.mention} {self.RICK_ROLL_YT_VIDEO_LINK}", 
                         delete_after=0.1
                     )
 
