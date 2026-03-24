@@ -1,137 +1,126 @@
-import discord
-from discord.ext import commands
-from discord import app_commands
-import pandas as pd
-import json
 import os
-import io
-from datetime import datetime
+import discord
+import aiohttp
 import pytz
 
-local_tz = pytz.timezone('America/Chicago')
+from discord.ext import tasks
+from discord.ext import commands
+from discord import app_commands
+from datetime import datetime
+from supabase import create_client
+from flask.cli import load_dotenv
+from datetime import time
 
+local_tz = pytz.timezone('America/Chicago')
+load_dotenv()
+url = os.environ.get("SUPABASE_URL")
+key = os.environ.get("SUPABASE_SERVICE_KEY")
+supabase = create_client(url, key)
 
 class Lates(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.data_file = 'permanent_lates.json'
         self.days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         self.meals = ["Lunch", "Dinner"]
-        self.lates = self.load_data()
+        self.cleanup_loop.start()
 
-    def load_data(self):
-        # Create default empty structure
-        initial_structure = {day: {meal: {} for meal in self.meals} for day in self.days}
-        if os.path.exists(self.data_file):
-            try:
-                with open(self.data_file, 'r') as f:
-                    loaded_data = json.load(f)
-                    # Re-fill the structure to ensure no keys are missing
-                    for day in self.days:
-                        if day in loaded_data:
-                            for meal in self.meals:
-                                if meal in loaded_data[day]:
-                                    initial_structure[day][meal] = loaded_data[day][meal]
-                return initial_structure
-            except Exception:
-                return initial_structure
-        return initial_structure
+    def _get_user_house(self, member: discord.Member):
+        """Returns 'koinonian', 'stratfordite', or 'suttonite' based on Discord roles."""
+        # Convert all user role names to lowercase for matching
+        role_names = [r.name.lower() for r in member.roles]
 
-    def save_data(self):
-        with open(self.data_file, 'w') as f:
-            json.dump(self.lates, f, indent=4)
+        if "koinonian" in role_names:
+            return "koinonian"
+        elif "stratfordite" in role_names:
+            return "stratfordite"
+        elif "suttonite" in role_names:
+            return "suttonite"
+        return None
 
-    @app_commands.command(name="import_koinonia_lates", description="One-time import from Koinonia CSVs")
-    @app_commands.checks.has_permissions(administrator=True)
-    async def import_csv(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
+    # Anchored to 12:00 AM (Midnight)
+    @tasks.loop(time=time(hour=0, minute=0, tzinfo=local_tz))
+    async def cleanup_loop(self):
+        """Triggers every night at midnight to clean up the previous day's lates."""
+        from datetime import timedelta
 
-        files = {
-            "Lunch": "Copy of Koinonia Lates Schedule - Permanent Lunch Lates.csv",
-            "Dinner": "Copy of Koinonia Lates Schedule - Permanent Dinner Lates.csv"
-        }
+        # 1. Get current time in Chicago
+        now_chicago = datetime.now(local_tz)
 
-        members = interaction.guild.members
-        match_count = 0
-        missing_files = []
+        # 2. Subtract one day to find the day that just ended
+        yesterday = now_chicago - timedelta(days=1)
+        yesterday_name = yesterday.strftime("%A")  # e.g., "Monday"
 
-        for meal_type, filename in files.items():
-            if not os.path.exists(filename):
-                missing_files.append(filename)
-                continue
+        print(f"⏰ Midnight Cleanup Triggered. Cleaning up lates for: {yesterday_name}", flush=True)
 
-            try:
-                df = pd.read_csv(filename)
-                # Strip spaces from column headers (handles "Thursday " vs "Thursday")
-                df.columns = [c.strip() for c in df.columns]
+        # 3. Call cleanup for that specific day
+        await self.perform_cleanup(day_to_clean=yesterday_name)
 
-                for day in [d for d in self.days if d in df.columns]:
-                    names = df[day].dropna().unique()
-                    for name_str in names:
-                        name_clean = str(name_str).strip()
-                        if not name_clean: continue
+    async def perform_cleanup(self, day_to_clean: str = None):
+        """Deletes temporary lates for a specific day."""
+        try:
+            query = supabase.table("lates").delete().eq("is_permanent", False)
 
-                        # Find best match in server nicknames/usernames
-                        target_user = discord.utils.find(
-                            lambda m: name_clean.lower() in m.display_name.lower(),
-                            members
-                        )
+            # If a day is provided, only delete that day's lates.
+            # Otherwise, delete ALL temporary lates (for manual/startup calls).
+            if day_to_clean:
+                query = query.eq("day_of_week", day_to_clean)
 
-                        # Use User ID if found, otherwise an "imported_" string key
-                        key = str(target_user.id) if target_user else f"imported_{name_clean}"
-                        final_name = target_user.display_name if target_user else name_clean
+            res = query.execute()
 
-                        self.lates[day][meal_type][key] = {
-                            "name": final_name,
-                            "role": "koinonian",
-                            "permanent": True,
-                            "date_added": datetime.now(local_tz).isoformat()
-                        }
-                        match_count += 1
-            except Exception as e:
-                return await interaction.followup.send(f"❌ Error processing {filename}: {e}", ephemeral=True)
+            count = len(res.data) if res.data else 0
+            scope = day_to_clean if day_to_clean else "ALL"
+            print(f"🧹 Cleanup Complete: Removed {count} temp lates for {scope}.", flush=True)
 
-        self.save_data()
+            ping_url = os.getenv("HEALTHCHECK_URL")
+            if ping_url:
+                async with aiohttp.ClientSession() as session:
+                    await session.get(ping_url)
+                    print("Successfully pinged Healthchecks.io")
 
-        msg = f"✅ Imported {match_count} Koinonian lates."
-        if missing_files:
-            msg += f"\n⚠️ Files not found: {', '.join(missing_files)}"
+            return count
 
-        await interaction.followup.send(msg, ephemeral=True)
+        except Exception as e:
+            print(f"❌ Cleanup failed: {e}", flush=True)
+            return None
+
+    @commands.command(name="force_cleanup")
+    @commands.has_permissions(administrator=True)
+    async def manual_cleanup(self, ctx):
+        """Manually triggers a total wipe of all temporary lates."""
+        await ctx.send("Deleting **all** temporary lates across all days... 🧹")
+
+        # Calling the shared logic with no day specified = Global Wipe
+        count = await self.perform_cleanup()
+
+        if count is not None:
+            await ctx.send(f"✅ Success! Removed {count} temporary lates.")
+        else:
+            await ctx.send("❌ Cleanup failed. Check bot console for errors.")
 
     @app_commands.command(name="view_lates", description="See lates for your house")
     @app_commands.choices(
         day=[app_commands.Choice(name=d, value=d) for d in
              ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]],
-        meal=[app_commands.Choice(name="Lunch", value="Lunch"), app_commands.Choice(name="Dinner", value="Dinner")],
-        my_role=[
-            app_commands.Choice(name="Koinonian", value="koinonian"),
-            app_commands.Choice(name="Stratfordite", value="stratfordite"),
-            app_commands.Choice(name="Suttonite", value="suttonite")
-        ]
+        meal=[app_commands.Choice(name="Lunch", value="Lunch"), app_commands.Choice(name="Dinner", value="Dinner")]
     )
-    async def view_lates(self, interaction: discord.Interaction, day: str, meal: str, my_role: str):
-        # House Grouping
-        target_roles = ["koinonian"] if my_role == "koinonian" else ["stratfordite", "suttonite"]
+    async def view_lates(self, interaction: discord.Interaction, day: str, meal: str):
+        house = self._get_user_house(interaction.user)
+        if not house:
+            return await interaction.response.send_message("❌ No house role detected.", ephemeral=True)
+
+        # Logic: Koinonian sees Koinonians; Stratford/Sutton see each other
+        target_roles = ["koinonian"] if house == "koinonian" else ["stratfordite", "suttonite"]
+
+        res = supabase.table("lates").select("*") \
+            .eq("day_of_week", day) \
+            .eq("meal", meal) \
+            .in_("role", target_roles) \
+            .execute()
 
         filtered_list = []
-        now = datetime.now(local_tz)
-
-        # Ensure day/meal existence
-        current_meal_dict = self.lates.get(day, {}).get(meal, {})
-
-        for user_id, info in list(current_meal_dict.items()):
-            date_added = datetime.fromisoformat(info["date_added"])
-
-            # Auto-clear non-permanent lates from previous weeks
-            if not info["permanent"] and now.isocalendar()[1] != date_added.isocalendar()[1]:
-                del self.lates[day][meal][user_id]
-                self.save_data()
-                continue
-
-            if info["role"] in target_roles:
-                status = "🔄" if info["permanent"] else "⏱️"
-                filtered_list.append(f"{status} **{info['name']}**")
+        for info in res.data:
+            status = "🔄" if info["is_permanent"] else "⏱️"
+            filtered_list.append(f"{status} **{info['nickname']}**")
 
         total_count = len(filtered_list)
 
@@ -151,81 +140,103 @@ class Lates(commands.Cog):
         day=[app_commands.Choice(name=d, value=d) for d in
              ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]],
         meal=[app_commands.Choice(name="Lunch", value="Lunch"), app_commands.Choice(name="Dinner", value="Dinner")],
-        role=[
-            app_commands.Choice(name="Koinonian", value="koinonian"),
-            app_commands.Choice(name="Stratfordite", value="stratfordite"),
-            app_commands.Choice(name="Suttonite", value="suttonite")
-        ]
+        duration = [app_commands.Choice(name="Permanent", value="True"), app_commands.Choice(name="Temporary", value="False")],
     )
-    async def late_me(self, interaction: discord.Interaction, day: str, meal: str, role: str, permanent: bool = False):
+    async def late_me(self, interaction: discord.Interaction, day: str, meal: str, duration: str):
+        # Automatically determine role
+        house = self._get_user_house(interaction.user)
+        if not house:
+            return await interaction.response.send_message(
+                "❌ You must have a house role (Koinonian, Stratfordite, or Suttonite) to use this.", ephemeral=True)
+
         user_id = str(interaction.user.id)
+
+        is_permanent = duration == "True"
 
         # Check for existing
-        if user_id in self.lates[day][meal]:
-            return await interaction.response.send_message(
-                f"❌ You already have a late for **{day} {meal}**. Clear it first to change it.", ephemeral=True)
+        existing = supabase.table("lates").select("*").eq("user_id", user_id).eq("day_of_week", day).eq("meal",
+                                                                                                        meal).execute()
+        if existing.data:
+            return await interaction.response.send_message("❌ You already have a late for this meal.", ephemeral=True)
 
-        self.lates[day][meal][user_id] = {
-            "name": interaction.user.display_name,
-            "role": role,
-            "permanent": permanent,
-            "date_added": datetime.now(local_tz).isoformat()
+        # Insert with automated house role
+        data = {
+            "user_id": user_id,
+            "nickname": interaction.user.display_name,
+            "role": house,  # Automated
+            "meal": meal,
+            "day_of_week": day,
+            "is_permanent": is_permanent
         }
+        supabase.table("lates").insert(data).execute()
+        await interaction.response.send_message(f"✅ Late recorded for **{day} {meal}** ({house.capitalize()}).",
+                                                ephemeral=True)
 
-        self.save_data()
-        await interaction.response.send_message(f"✅ Late recorded for **{day} {meal}**.", ephemeral=True)
-
-    @app_commands.command(name="clear_late", description="Remove your late request")
-    @app_commands.choices(
-        day=[app_commands.Choice(name=d, value=d) for d in
-             ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]],
-        meal=[app_commands.Choice(name="Lunch", value="Lunch"), app_commands.Choice(name="Dinner", value="Dinner")]
-    )
-    async def clear_late(self, interaction: discord.Interaction, day: str, meal: str):
+    async def late_days_autocomplete(
+            self,
+            interaction: discord.Interaction,
+            current: str,
+    ) -> list[app_commands.Choice[str]]:
         user_id = str(interaction.user.id)
-        if user_id in self.lates[day][meal]:
-            del self.lates[day][meal][user_id]
-            self.save_data()
-            await interaction.response.send_message(f"🗑️ Your late for {day} {meal} has been cleared.", ephemeral=True)
+
+        # Fetch all lates for this specific user
+        res = supabase.table("lates").select("day_of_week", "meal").eq("user_id", user_id).execute()
+
+        # Format the choices (e.g., "Monday - Dinner")
+        choices = [
+            app_commands.Choice(name=f"{row['day_of_week']} {row['meal']}", value=f"{row['day_of_week']}|{row['meal']}")
+            for row in res.data
+            if current.lower() in f"{row['day_of_week']} {row['meal']}".lower()
+        ]
+
+        return choices[:25]  # Discord limits autocomplete to 25 choices
+
+    @app_commands.command(name="clear_late", description="Select an existing late request to remove")
+    @app_commands.autocomplete(selection=late_days_autocomplete)
+    async def clear_late(self, interaction: discord.Interaction, selection: str):
+        user_id = str(interaction.user.id)
+
+        # Split the value back into day and meal
+        try:
+            day, meal = selection.split("|")
+        except ValueError:
+            await interaction.response.send_message("❌ Invalid selection.", ephemeral=True)
+            return
+
+        # Perform the deletion
+        res = (supabase.table("lates").delete()
+            .eq("user_id", user_id)
+            .eq("day_of_week", day)
+            .eq("meal", meal)
+            .execute())
+
+        if res.data:
+            await interaction.response.send_message(f"🗑️ Your {day} {meal} late has been cleared.", ephemeral=True)
         else:
-            await interaction.response.send_message("No late found to clear.", ephemeral=True)
+            await interaction.response.send_message("❌ Could not find that late. It may have already been cleared.",
+                                                    ephemeral=True)
+
 
     @app_commands.command(name="my_lates", description="See all the meals you've requested lates for")
     async def my_lates(self, interaction: discord.Interaction):
         user_id = str(interaction.user.id)
-        now = datetime.now(local_tz)
+
+        res = (supabase
+               .table("lates")
+               .select("*")
+               .eq("user_id", user_id)
+               .execute())
+
+        if not res.data:
+            return await interaction.response.send_message("You don't have any active lates.", ephemeral=True)
+
         found_lates = []
-        changed = False
+        for info in res.data:
+            status = "🔄 Permanent" if info["is_permanent"] else "⏱️ This week only"
+            found_lates.append(f"• **{info['day_of_week']} {info['meal']}**: {status}")
 
-        # Scan all days and meals for this user
-        for day in self.days:
-            for meal in self.meals:
-                if user_id in self.lates[day][meal]:
-                    info = self.lates[day][meal][user_id]
-                    date_added = datetime.fromisoformat(info["date_added"])
-
-                    # Expiry check: If temporary and from a different week, remove it
-                    if not info["permanent"] and now.isocalendar()[1] != date_added.isocalendar()[1]:
-                        del self.lates[day][meal][user_id]
-                        changed = True
-                        continue
-
-                    status = "🔄 Permanent" if info["permanent"] else "⏱️ This week only"
-                    found_lates.append(f"• **{day} {meal}**: {status}")
-
-        if changed:
-            self.save_data()
-
-        if not found_lates:
-            return await interaction.response.send_message("You don't have any active lates recorded currently.",
-                                                           ephemeral=True)
-
-        embed = discord.Embed(
-            title=f"📋 Your Registered Lates",
-            description="\n".join(found_lates),
-            color=discord.Color.green()
-        )
-        embed.set_footer(text="Use /clear_late to remove any of these.")
+        embed = discord.Embed(title="📋 Your Registered Lates", description="\n".join(found_lates),
+                              color=discord.Color.green())
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def setup(bot):

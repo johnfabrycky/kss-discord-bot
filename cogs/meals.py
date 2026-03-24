@@ -11,22 +11,20 @@ local_tz = pytz.timezone('America/Chicago')
 class Meals(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.csv_path = 'Spring 26 Workschedule - Meal Schedule.csv'
 
-    def get_meal_menu_logic(self, week, day, meal_type):
-        try:
-            df = pd.read_csv(self.csv_path)
-            headers = df.iloc[0].tolist()
-            col_name = f"Week {week} - {meal_type}"
-            if col_name not in headers: return "Not Found"
-            col_idx = headers.index(col_name)
-            data_rows = df.iloc[1:]
-            match = data_rows[data_rows['Unnamed: 0'].str.strip() == day]
-            if match.empty: return "No data for this day"
-            item = match.iloc[0, col_idx]
-            return item if pd.notna(item) else "No meal scheduled"
-        except Exception:
-            return "Error loading menu"
+    def get_meal_from_cache(self, week, day, meal_type):
+        """Filters the cached Supabase data for the specific meal."""
+        # Standardize casing to match your transform logic
+        meal_type = meal_type.lower()
+
+        # Search the list of dictionaries cached in on_ready
+        for meal in getattr(self.bot, 'meal_cache', []):
+            if (meal['week_number'] == week and
+                    meal['day'].strip() == day and
+                    meal['meal_type'] == meal_type):
+                return meal['dish_name']
+
+        return "No meal scheduled"
 
     def is_uiuc_break(self, current_date):
         # Spring Break 2026: March 14 to March 22
@@ -36,28 +34,41 @@ class Meals(commands.Cog):
             return "Spring Break 🌸"
         return None
 
-    @app_commands.command(name="today", description="Get today's menu privately")
+    @app_commands.command(name="today", description="Get today's menu")
     async def today(self, interaction: discord.Interaction):
         now = datetime.now(local_tz)
+
+        # 1. Check for breaks
         break_name = self.is_uiuc_break(now)
         if break_name:
-            return await interaction.response.send_message(f"🏝️ **Enjoy your {break_name}!** No meals scheduled.", ephemeral=True)
+            return await interaction.response.send_message(
+                f"🏝️ **Enjoy your {break_name}!** No meals scheduled.", ephemeral=True
+            )
 
+        # 2. Calculate Week and Day
         semester_start = datetime(2026, 1, 19, tzinfo=local_tz)
         days_since_start = (now - semester_start).days
+        # Account for spring break gap in week rotation
         if now > datetime(2026, 3, 22, tzinfo=local_tz):
             days_since_start -= 7
 
         current_week = ((max(0, days_since_start) // 7) % 4) + 1
         day_name = now.strftime("%A")
 
-        embed = discord.Embed(title=f"🍴 Menu for {day_name} (Week {current_week})", color=discord.Color.gold())
-        embed.add_field(name="Lunch", value=self.get_meal_menu_logic(current_week, day_name, "Lunch"), inline=False)
-        embed.add_field(name="Dinner", value=self.get_meal_menu_logic(current_week, day_name, "Dinner"), inline=False)
+        # 3. Fetch from Cache
+        lunch = self.get_meal_from_cache(current_week, day_name, "lunch")
+        dinner = self.get_meal_from_cache(current_week, day_name, "dinner")
+
+        # 4. Send Embed
+        embed = discord.Embed(
+            title=f"🍴 Menu for {day_name}",
+            description=f"**Rotation: Week {current_week}**",
+            color=discord.Color.gold()
+        )
+        embed.add_field(name="☀️ Lunch", value=lunch, inline=False)
+        embed.add_field(name="🌙 Dinner", value=dinner, inline=False)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
-        return None
-
 
 async def setup(bot):
     await bot.add_cog(Meals(bot))
