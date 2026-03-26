@@ -338,7 +338,7 @@ class Parking(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(f"❌ Database error: {e}", ephemeral=True)
 
-    @app_commands.command(name="parking_status")
+    @app_commands.command(name="parking_status", description="View available parking spots")
     async def parking_status(self, interaction: discord.Interaction):
         now = datetime.now(local_tz).replace(minute=0, second=0, microsecond=0)
         # Define the one-week cutoff
