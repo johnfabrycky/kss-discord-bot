@@ -2,7 +2,7 @@
 
 A multi-purpose utility bot for the KSS community, managing parking, meal schedules, late plates, and social movie sessions.
 
-# FOR APRIL FOOLS WE ARE GOING TO RANDOMLY PING SOMEONE EVERY 3-6 MINUTES FOR THE WHOLE 24 HOURS
+# FOR APRIL FOOLS WE ARE GOING TO RANDOMLY PING SOMEONE EVERY 5-120 MINUTES FOR THE WHOLE 24 HOURS
 
 ## 🚀 Active Functionality
 
@@ -66,20 +66,23 @@ Remember that the felipe-dev bot currently does not have an associated uptime ro
 
 **Database Maintenance**
 
-Most persistent data is stored on Supabase. To be added to the group contact John Fabrycky (johnf8@illinois.edu) or 
+Most persistent data is stored on [Supabase](https://supabase.com/dashboard/org/ejwmbmbydveoeffdnpox). To be added to the group contact John Fabrycky (johnf8@illinois.edu) or 
 Trent Heller (trentheller25@illinois.edu). To have write access to the databases, ask to be given admin privilege. 
 
 The meals will need to be updated at least on a semesterly basis. It is simply under the "meals" table in Supabase.
 
-**Code Maintenance/Improvement**
+The unclaimed parking spots for each semester should be marked in Supabase by finding the entry in the parking_spots
+table and toggling the is_guest value to true. The is_guest value should be false for all claimed parking spots as well
+as the staff spots (denoted as 998 and 999 in Supabase).
 
-Currently, the parking spot 46 is set as open inside the parking.py cog. A future improvement would be to remove that and
-add a is_free column to the spots table in supabase, and set it to false for all spots that are being rented out by BHM
-and to true for any open spots (such as 46 as of 3/3/2026) and the staff spots, which are never rented to residents.
+**Code Maintenance/Improvement**
+There should be no need to alter the code to maintain the bot. Code alterations should only be necessary
+for improving/changing the functionality, but not for maintaining the current use cases.
 
 **Bot Hosting**
 
-The bot is hosted on render free tier, and is monitored via uptime robot with checks every 5 minutes to keep the service up.
+The bot is hosted on [Render](https://dashboard.render.com/) free tier, and is monitored via 
+[Uptime Robot](https://dashboard.uptimerobot.com/monitors) with checks every 5 minutes to keep the service up.
 On free tier, the render service cannot be accessed by multiple accounts so John Fabrycky currently is the only person
 with the ability to host the bot. This privilege should be soon given to others, such as future RAs of BHM, and more importantly
-the Koin/Strat/Sutton google profiles (i.e. koinonia308@gmail.com, stratford310@gmail.com, suttonhouse2010@gmail.com).
+the Koin/Strat/Sutton google profiles (ask an RA of BHM if you need the email addresses). 
