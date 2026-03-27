@@ -18,6 +18,7 @@ INITIAL_EXTENSIONS = [
     'cogs.parking',
     # 'cogs.shifts',
     'cogs.feedback',
+    'cogs.random_ping'
 ]
 
 
@@ -26,6 +27,7 @@ class GeraldBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
         intents.message_content = True
+        intents.members = True
         super().__init__(command_prefix='!', intents=intents, help_command=None)
 
         # Initialize Supabase
