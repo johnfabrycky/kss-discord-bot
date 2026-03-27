@@ -95,3 +95,33 @@ The bot is hosted on [Render](https://dashboard.render.com/) free tier, and is m
 On free tier, the render service cannot be accessed by multiple accounts so John Fabrycky currently is the only person
 with the ability to host the bot. This privilege should be soon given to others, such as future RAs of BHM, and more importantly
 the Koin/Strat/Sutton google profiles (ask an RA of BHM if you need the email addresses). 
+
+---
+## 📡 How to host the bot
+1. Request to join "johnfabrycky's Org" on [Supabase](https://supabase.com/dashboard/org/ejwmbmbydveoeffdnpox) and to be 
+given admin privileges so that you have the authority to perform CRUD operations on the database.
+2. Create a free account with [Uptime Robot](https://dashboard.uptimerobot.com/monitors). 
+3. Create a free account on [Render](https://dashboard.render.com/), go to the home page and select "New Web Service" under "Web Services"
+4. Choose "Github" as your provider
+5. Find the "felipe" git repository and select it.
+6. Use most of the default entries. For Start Command, replace the default with "python main.py". 
+7. Use the free tier, under "For hobby projects". 
+8. Under environment, you need to add three environment variables. They will be named DISCORD_TOKEN, SUPABASE_SERVICE_KEY,
+and SUPABASE_URL. 
+   1. DISCORD_TOKEN - First option: find whoever is currently hosting the bot and ask them to share the token with you.
+Otherwise, go to the discord developer [portal](https://discord.com/developers/home). Select the Felipe bot, then select 
+the Bot tab, then under Token, press Reset Token. ONLY do this if you are unable to contact the person who currently
+has the Token because it will invalidate the current Token.
+   2. SUPABASE_URL - Go to Supabase and select the "kss discord bot". Then go to Integrations -> DATA API -> API URL. Copy
+the API URL. 
+   3. SUPABASE_SERVICE_KEY - On Supabase, go to Settings -> Configuration -> API Keys, then under "Secret Keys", find the 
+default key, press the "copy" icon to put it on your clipboard, then return to render environment and enter it. 
+9. Select the Events tab, then find the "Manual Deploy" button, click it and select "Deploy latest commit". 
+10. Go to Monitor -> Logs. It should build in under 5 minutes, with the success message "==> Your service is live 🎉", 
+and no error messages.
+11. Go to Events. ON the top bar towards the bottom there will be a purple link with a copy symbol next to it, that 
+ends in "onrender.com". Copy the link to your clipboard.
+12. On UptimeRobot, create a new Monitor. Under "URL to monitor", enter the monitor from your clipboard. Under
+"How will we notify you?", select your preferred means of notification for a down event. Under "Monitor interval", 
+leave it at 5m. Then click "Create monitor". 
+13. Congratulations, you have fully configured the discord bot to run on a hosted service for free 🎉🎺🎉🎺.
