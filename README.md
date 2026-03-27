@@ -84,6 +84,7 @@ table and toggling the is_guest value to true. The is_guest value should be fals
 as the staff spots (denoted as 998 and 999 in Supabase).
 
 **Code Maintenance/Improvement**
+
 There should be no need to alter the code to maintain the bot. Code alterations should only be necessary
 for improving/changing the functionality, but not for maintaining the current use cases.
 
