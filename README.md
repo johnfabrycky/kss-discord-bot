@@ -24,17 +24,25 @@ A multi-purpose utility bot for the KSS community, managing parking, meal schedu
 * `/today` — Shows the Lunch and Dinner menu for the current UIUC academic week.
 * Includes automated logic for UIUC Spring Break and 4-week rotating menus.
 
-### 🎬 Movie Tracking
-* `/watch` — Publicly announce a movie session with location and duration.
-* `/where` — Privately check which movies are currently playing and where.
+[//]: # (### 🎬 Movie Tracking)
 
-### ⚖️ Shifts
-* `/offer_shift` — Put up a shift for swap or pay
-* `/view_market` — See current shifts being offered
-* `/claim_shift` — Take a shift
-* `/swap_shift` — Propose a swap with someone else's shift
-* `/my_shifts` — View your shifts
-* `/cancel_shift` — Take down a shift you offered that hasn't been claimed yet 
+[//]: # (* `/watch` — Publicly announce a movie session with location and duration.)
+
+[//]: # (* `/where` — Privately check which movies are currently playing and where.)
+
+[//]: # (### ⚖️ Shifts)
+
+[//]: # (* `/offer_shift` — Put up a shift for swap or pay)
+
+[//]: # (* `/view_market` — See current shifts being offered)
+
+[//]: # (* `/claim_shift` — Take a shift)
+
+[//]: # (* `/swap_shift` — Propose a swap with someone else's shift)
+
+[//]: # (* `/my_shifts` — View your shifts)
+
+[//]: # (* `/cancel_shift` — Take down a shift you offered that hasn't been claimed yet )
 
 ### 📝 Feedback
 * `/feedback` — Offer feedback to the Felipe developers
