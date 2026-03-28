@@ -54,7 +54,7 @@ class GeraldBot(commands.Bot):
         # 3. Cache Initial Data
         # The 'state' is what actually shows up in the bubble
         await self.change_presence(
-            activity=discord.CustomActivity(name="Custom Status", state="Enter /help to see what I can do!")
+            activity=discord.CustomActivity(name="Custom Status", state="I am.")
         )
 
         try:

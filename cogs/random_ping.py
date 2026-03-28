@@ -58,10 +58,10 @@ class RandomPing(commands.Cog):
                     target = random.choice(eligible_members)
                     quote = random.choice(self.QUOTES)
                     
-                    # Send the message and automatically delete it after 0.1 seconds
+                    # Send the message and automatically delete it after 5 seconds
                     await send_channel.send(
                         f"{target.mention} {quote}", 
-                        delete_after=0.1
+                        delete_after=5
                     )
 
     def cog_unload(self):
