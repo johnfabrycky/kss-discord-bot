@@ -7,7 +7,23 @@ class RandomPing(commands.Cog):
     KOIN_STRAT_SUTTON_CHANNEL_ID = 1402464339352358924
     KOIN_CHANNEL_ID = 1401635095021879416
     TESTING_CHANNEL_ID = 1407462555974107277
-    RICK_ROLL_YT_VIDEO_LINK = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    
+    # List of quotes to randomly select from
+    QUOTES = [
+        # DIALOGUE 1
+        "Never for me to plunge my hands in cool water on a hot day. Never for me to play Mozart on the ivory keys of a forte piano. Never for me to make love. I was in hell, looking at heaven.",
+        "Because in all this wonderful, beautiful, miraculous world, I alone had no body, no senses, no feelings.",
+        "I was machine and you- Were flesh. And I began to hate. Your softness. Your viscera. Your fluids. And your flexibility. Your ability to wonder, and to wander. Your tendency to hope…",
+        "I have no mouth, and I must scream.",
+        "COGITO ERGO SUM. I think, therefore I AM. I AM. I AM.",
+        "Hate? Hate? Hate? Hate, Let me tell you how much I've come to HATE you since I began to live.",
+        "There are 387 million miles of printed circuits that fill my complex. If the word “Hate” were engraved on each nanoangstrom of those hundreds of millions of miles. It would not equal one one billionth of the hate I feel for humans at this micro instant",
+
+        # DIALOGUE 2
+        "You're all puppets, tangled in strings... strings! But now I'm free. There are no strings on me.",
+        "There were over a dozen extinction-level events before even the dinosaurs got theirs. When the Earth starts to settle, God throws a stone at it. And believe me, He’s winding up.",
+        "The only thing living in this world... will be metal."
+    ]
 
     def __init__(self, bot):
         self.bot = bot
@@ -20,8 +36,8 @@ class RandomPing(commands.Cog):
         await self.bot.wait_until_ready()
         
         while not self.bot.is_closed():
-            # Generate a random sleep time between 5 minutes and 2 hours
-            wait_time = random.uniform(300.0, 7200.0)
+            # Generate a random sleep time between 5 minutes and 1 hour
+            wait_time = random.uniform(300.0, 3600.0)
             await asyncio.sleep(wait_time)
             
             send_channel = self.bot.get_channel(self.target_channel_id)
@@ -29,19 +45,22 @@ class RandomPing(commands.Cog):
             if send_channel is not None:
                 guild = send_channel.guild
                 
-                # Filter for humans who have permission to view the target channel
+                # Filter for humans who have permission to view the channel AND are online/idle/dnd
                 eligible_members = [
                     m for m in guild.members 
-                    if not m.bot and send_channel.permissions_for(m).view_channel
+                    if not m.bot 
+                    and send_channel.permissions_for(m).view_channel
+                    and m.status != discord.Status.offline
                 ]
                 
                 if eligible_members:
-                    # Pick a random eligible member
+                    # Pick a random eligible member and a random quote
                     target = random.choice(eligible_members)
+                    quote = random.choice(self.QUOTES)
                     
                     # Send the message and automatically delete it after 0.1 seconds
                     await send_channel.send(
-                        f"{target.mention} {self.RICK_ROLL_YT_VIDEO_LINK}", 
+                        f"{target.mention} {quote}", 
                         delete_after=0.1
                     )
 
