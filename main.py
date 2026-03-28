@@ -18,6 +18,7 @@ INITIAL_EXTENSIONS = [
     'cogs.parking',
     # 'cogs.shifts',
     'cogs.feedback',
+    'cogs.random_ping'
 ]
 
 
@@ -26,6 +27,7 @@ class GeraldBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
         intents.message_content = True
+        intents.members = True
         super().__init__(command_prefix='!', intents=intents, help_command=None)
 
         # Initialize Supabase
@@ -80,6 +82,15 @@ bot = GeraldBot()
 async def sync_global(ctx):
     await bot.tree.sync()
     await ctx.send("🌍 Global slash commands synced (may take 1 hour).")
+
+
+@bot.command()
+@commands.is_owner()
+async def clear_ghosts(ctx):
+    # This tells Discord: "Delete every global command I ever made"
+    bot.tree.clear_commands(guild=None)
+    await bot.tree.sync()
+    await ctx.send("👻 Ghost commands cleared! The duplicate should vanish shortly.")
 
 
 # --- Help Command ---

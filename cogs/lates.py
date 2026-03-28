@@ -1,5 +1,6 @@
 import os
 import discord
+import aiohttp
 import pytz
 
 from discord.ext import tasks
@@ -69,6 +70,13 @@ class Lates(commands.Cog):
             count = len(res.data) if res.data else 0
             scope = day_to_clean if day_to_clean else "ALL"
             print(f"🧹 Cleanup Complete: Removed {count} temp lates for {scope}.", flush=True)
+
+            ping_url = os.getenv("HEALTHCHECK_URL")
+            if ping_url:
+                async with aiohttp.ClientSession() as session:
+                    await session.get(ping_url)
+                    print("Successfully pinged Healthchecks.io")
+
             return count
 
         except Exception as e:

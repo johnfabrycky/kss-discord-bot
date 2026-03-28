@@ -2,6 +2,8 @@
 
 A multi-purpose utility bot for the KSS community, managing parking, meal schedules, late plates, and social movie sessions.
 
+# FOR APRIL FOOLS WE ARE GOING TO RANDOMLY PING SOMEONE EVERY 5-120 MINUTES FOR THE WHOLE 24 HOURS
+
 ## 🚀 Active Functionality
 
 ### 🚗 Parking Utility
@@ -22,17 +24,25 @@ A multi-purpose utility bot for the KSS community, managing parking, meal schedu
 * `/today` — Shows the Lunch and Dinner menu for the current UIUC academic week.
 * Includes automated logic for UIUC Spring Break and 4-week rotating menus.
 
-### 🎬 Movie Tracking
-* `/watch` — Publicly announce a movie session with location and duration.
-* `/where` — Privately check which movies are currently playing and where.
+[//]: # (### 🎬 Movie Tracking)
 
-### ⚖️ Shifts
-* `/offer_shift` — Put up a shift for swap or pay
-* `/view_market` — See current shifts being offered
-* `/claim_shift` — Take a shift
-* `/swap_shift` — Propose a swap with someone else's shift
-* `/my_shifts` — View your shifts
-* `/cancel_shift` — Take down a shift you offered that hasn't been claimed yet 
+[//]: # (* `/watch` — Publicly announce a movie session with location and duration.)
+
+[//]: # (* `/where` — Privately check which movies are currently playing and where.)
+
+[//]: # (### ⚖️ Shifts)
+
+[//]: # (* `/offer_shift` — Put up a shift for swap or pay)
+
+[//]: # (* `/view_market` — See current shifts being offered)
+
+[//]: # (* `/claim_shift` — Take a shift)
+
+[//]: # (* `/swap_shift` — Propose a swap with someone else's shift)
+
+[//]: # (* `/my_shifts` — View your shifts)
+
+[//]: # (* `/cancel_shift` — Take down a shift you offered that hasn't been claimed yet )
 
 ### 📝 Feedback
 * `/feedback` — Offer feedback to the Felipe developers
@@ -64,20 +74,54 @@ Remember that the felipe-dev bot currently does not have an associated uptime ro
 
 **Database Maintenance**
 
-Most persistent data is stored on Supabase. To be added to the group contact John Fabrycky (johnf8@illinois.edu) or 
+Most persistent data is stored on [Supabase](https://supabase.com/dashboard/org/ejwmbmbydveoeffdnpox). To be added to the group contact John Fabrycky (johnf8@illinois.edu) or 
 Trent Heller (trentheller25@illinois.edu). To have write access to the databases, ask to be given admin privilege. 
 
 The meals will need to be updated at least on a semesterly basis. It is simply under the "meals" table in Supabase.
 
+The unclaimed parking spots for each semester should be marked in Supabase by finding the entry in the parking_spots
+table and toggling the is_guest value to true. The is_guest value should be false for all claimed parking spots as well
+as the staff spots (denoted as 998 and 999 in Supabase).
+
 **Code Maintenance/Improvement**
 
-Currently, the parking spot 46 is set as open inside the parking.py cog. A future improvement would be to remove that and
-add a is_free column to the spots table in supabase, and set it to false for all spots that are being rented out by BHM
-and to true for any open spots (such as 46 as of 3/3/2026) and the staff spots, which are never rented to residents.
+There should be no need to alter the code to maintain the bot. Code alterations should only be necessary
+for improving/changing the functionality, but not for maintaining the current use cases.
 
 **Bot Hosting**
 
-The bot is hosted on render free tier, and is monitored via uptime robot with checks every 5 minutes to keep the service up.
+The bot is hosted on [Render](https://dashboard.render.com/) free tier, and is monitored via 
+[Uptime Robot](https://dashboard.uptimerobot.com/monitors) with checks every 5 minutes to keep the service up.
 On free tier, the render service cannot be accessed by multiple accounts so John Fabrycky currently is the only person
 with the ability to host the bot. This privilege should be soon given to others, such as future RAs of BHM, and more importantly
-the Koin/Strat/Sutton google profiles (i.e. koinonia308@gmail.com, stratford310@gmail.com, suttonhouse2010@gmail.com).
+the Koin/Strat/Sutton google profiles (ask an RA of BHM if you need the email addresses). 
+
+---
+## 📡 How to host the bot
+1. Request to join "johnfabrycky's Org" on [Supabase](https://supabase.com/dashboard/org/ejwmbmbydveoeffdnpox) and to be 
+given admin privileges so that you have the authority to perform CRUD operations on the database.
+2. Create a free account with [Uptime Robot](https://dashboard.uptimerobot.com/monitors). 
+3. Create a free account on [Render](https://dashboard.render.com/), go to the home page and select "New Web Service" under "Web Services"
+4. Choose "Github" as your provider
+5. Find the "felipe" git repository and select it.
+6. Use most of the default entries. For Start Command, replace the default with "python main.py". 
+7. Use the free tier, under "For hobby projects". 
+8. Under environment, you need to add three environment variables. They will be named DISCORD_TOKEN, SUPABASE_SERVICE_KEY,
+and SUPABASE_URL. 
+   1. DISCORD_TOKEN - First option: find whoever is currently hosting the bot and ask them to share the token with you.
+Otherwise, go to the discord developer [portal](https://discord.com/developers/home). Select the Felipe bot, then select 
+the Bot tab, then under Token, press Reset Token. ONLY do this if you are unable to contact the person who currently
+has the Token because it will invalidate the current Token.
+   2. SUPABASE_URL - Go to Supabase and select the "kss discord bot". Then go to Integrations -> DATA API -> API URL. Copy
+the API URL. 
+   3. SUPABASE_SERVICE_KEY - On Supabase, go to Settings -> Configuration -> API Keys, then under "Secret Keys", find the 
+default key, press the "copy" icon to put it on your clipboard, then return to render environment and enter it. 
+9. Select the Events tab, then find the "Manual Deploy" button, click it and select "Deploy latest commit". 
+10. Go to Monitor -> Logs. It should build in under 5 minutes, with the success message "==> Your service is live 🎉", 
+and no error messages.
+11. Go to Events. ON the top bar towards the bottom there will be a purple link with a copy symbol next to it, that 
+ends in "onrender.com". Copy the link to your clipboard.
+12. On UptimeRobot, create a new Monitor. Under "URL to monitor", enter the monitor from your clipboard. Under
+"How will we notify you?", select your preferred means of notification for a down event. Under "Monitor interval", 
+leave it at 5m. Then click "Create monitor". 
+13. Congratulations, you have fully configured the discord bot to run on a hosted service for free 🎉🎺🎉🎺.

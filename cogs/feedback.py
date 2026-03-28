@@ -43,7 +43,7 @@ class Feedback(commands.Cog):
         key = os.environ.get("SUPABASE_SERVICE_KEY")
         self.supabase: Client = create_client(url, key)
 
-    @app_commands.command(name="feedback", description="Submit a suggestion to improve the bot")
+    @app_commands.command(name="feedback", description="Submit feedback to the Felipe dev team (hit enter, then a submission box will appear)")
     async def feedback(self, interaction: discord.Interaction):
         # Open the popup modal
         await interaction.response.send_modal(FeedbackModal(self.supabase))
