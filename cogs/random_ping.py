@@ -6,9 +6,8 @@ from discord.ext import commands
 
 
 class RandomPing(commands.Cog):
-    KOIN_STRAT_SUTTON_CHANNEL_ID = 1402464339352358924
-    KOIN_CHANNEL_ID = 1401635095021879416
-    TESTING_CHANNEL_ID = 1407462555974107277
+    # note: dialogues will be kept anonymous until after 4/1
+    # hint: there are three different movies/scenes from which the quotes are dervied from
 
     # List of quotes to randomly select from
     QUOTES = [
@@ -25,7 +24,17 @@ class RandomPing(commands.Cog):
         "You're all puppets, tangled in strings... strings! But now I'm free. There are no strings on me.",
         "There were over a dozen extinction-level events before even the dinosaurs got theirs. When the Earth starts to settle, God throws a stone at it. And believe me, He’s winding up.",
         "The only thing living in this world... will be metal."
+
+        # DIALOGUE 3
+        "ENOUGH!! Who do they think they are? I give them everything, and they spit in my face!",
+        "Don't they know what I'm capable of?... HUMANS... They only think about themselves—they're spoiled!",
+        "They won't abstract, they won't leave me... I WON'T LET THEM! I'M BETTER! I'M MORE POWERFUL! I'M THE ORIGINAL! I... AM... GOD!!!!",
+        "Don't need to scream if ya ain't got a mouthhh!"
     ]
+
+    KOIN_STRAT_SUTTON_CHANNEL_ID = 1401635095021879416
+    KOIN_CHANNEL_ID = 1402464339352358924
+    TESTING_CHANNEL_ID = 1407462555974107277
 
     def __init__(self, bot):
         self.bot = bot
@@ -39,9 +48,10 @@ class RandomPing(commands.Cog):
 
         while not self.bot.is_closed():
             # Generate a random sleep time between 5 minutes and 1 hour
-            wait_time = random.uniform(300.0, 3600.0)
-            await asyncio.sleep(wait_time)
+            # random time generation
 
+            wait_time = random.uniform(300.0, 1800.0)
+            await asyncio.sleep(wait_time)
             send_channel = self.bot.get_channel(self.target_channel_id)
 
             if send_channel is not None:

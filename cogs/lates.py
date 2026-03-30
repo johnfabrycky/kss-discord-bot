@@ -1,11 +1,13 @@
 import os
-from datetime import datetime, time
+from datetime import datetime
+from datetime import time
 
 import aiohttp
 import discord
 import pytz
 from discord import app_commands
-from discord.ext import tasks, commands
+from discord.ext import commands
+from discord.ext import tasks
 from flask.cli import load_dotenv
 from supabase import create_client
 
@@ -206,8 +208,12 @@ class Lates(commands.Cog):
         except ValueError:
             return await interaction.followup.send("❌ Invalid selection.", ephemeral=True)
 
-        res = (
-            supabase.table("lates").delete().eq("user_id", user_id).eq("day_of_week", day).eq("meal", meal).execute())
+        # Perform the deletion
+        res = (supabase.table("lates").delete()
+               .eq("user_id", user_id)
+               .eq("day_of_week", day)
+               .eq("meal", meal)
+               .execute())
 
         if res.data:
             await interaction.followup.send(f"🗑️ Your {day} {meal} late has been cleared.", ephemeral=True)
@@ -220,7 +226,12 @@ class Lates(commands.Cog):
         await interaction.response.defer(ephemeral=True)  # Defer first
 
         user_id = str(interaction.user.id)
-        res = (supabase.table("lates").select("*").eq("user_id", user_id).execute())
+
+        res = (supabase
+               .table("lates")
+               .select("*")
+               .eq("user_id", user_id)
+               .execute())
 
         if not res.data:
             return await interaction.followup.send("You don't have any active lates.", ephemeral=True)
