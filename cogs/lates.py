@@ -105,9 +105,11 @@ class Lates(commands.Cog):
         meal=[app_commands.Choice(name="Lunch", value="Lunch"), app_commands.Choice(name="Dinner", value="Dinner")]
     )
     async def view_lates(self, interaction: discord.Interaction, day: str, meal: str):
+        await interaction.response.defer(ephemeral=True)
+
         house = self._get_user_house(interaction.user)
         if not house:
-            return await interaction.response.send_message("❌ No house role detected.", ephemeral=True)
+            return await interaction.followup.send("❌ No house role detected.", ephemeral=True)
 
         # Logic: Koinonian sees Koinonians; Stratford/Sutton see each other
         target_roles = ["koinonian"] if house == "koinonian" else ["stratfordite", "suttonite"]
@@ -126,7 +128,7 @@ class Lates(commands.Cog):
         total_count = len(filtered_list)
 
         if total_count == 0:
-            return await interaction.response.send_message(
+            return await interaction.followup.send(
                 f"No lates recorded for **{day} {meal}** in your house group.", ephemeral=True)
 
         embed = discord.Embed(
@@ -134,7 +136,8 @@ class Lates(commands.Cog):
             description="\n".join(filtered_list),
             color=discord.Color.blue()
         )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     @app_commands.command(name="late_me", description="Request food to be set aside")
     @app_commands.choices(
@@ -145,34 +148,25 @@ class Lates(commands.Cog):
                   app_commands.Choice(name="Temporary", value="False")],
     )
     async def late_me(self, interaction: discord.Interaction, day: str, meal: str, duration: str):
-        # Automatically determine role
+        await interaction.response.defer(ephemeral=True)  # Defer first
+
         house = self._get_user_house(interaction.user)
         if not house:
-            return await interaction.response.send_message(
-                "❌ You must have a house role (Koinonian, Stratfordite, or Suttonite) to use this.", ephemeral=True)
+            return await interaction.followup.send("❌ You must have a house role to use this.", ephemeral=True)
 
         user_id = str(interaction.user.id)
-
         is_permanent = duration == "True"
 
-        # Check for existing
         existing = supabase.table("lates").select("*").eq("user_id", user_id).eq("day_of_week", day).eq("meal",
                                                                                                         meal).execute()
         if existing.data:
-            return await interaction.response.send_message("❌ You already have a late for this meal.", ephemeral=True)
+            return await interaction.followup.send("❌ You already have a late for this meal.", ephemeral=True)
 
-        # Insert with automated house role
-        data = {
-            "user_id": user_id,
-            "nickname": interaction.user.display_name,
-            "role": house,  # Automated
-            "meal": meal,
-            "day_of_week": day,
-            "is_permanent": is_permanent
-        }
+        data = {"user_id": user_id, "nickname": interaction.user.display_name, "role": house, "meal": meal,
+                "day_of_week": day, "is_permanent": is_permanent}
         supabase.table("lates").insert(data).execute()
-        await interaction.response.send_message(f"✅ Late recorded for **{day} {meal}** ({house.capitalize()}).",
-                                                ephemeral=True)
+
+        await interaction.followup.send(f"✅ Late recorded for **{day} {meal}** ({house.capitalize()}).", ephemeral=True)
 
     async def late_days_autocomplete(
             self,
@@ -182,28 +176,37 @@ class Lates(commands.Cog):
         user_id = str(interaction.user.id)
 
         # Fetch all lates for this specific user
-        res = supabase.table("lates").select("day_of_week", "meal").eq("user_id", user_id).execute()
+        res = (supabase.table("lates")
+               .select("day_of_week", "meal", "is_permanent")
+               .eq("user_id", user_id).execute())
 
         # Format the choices (e.g., "Monday - Dinner")
-        choices = [
-            app_commands.Choice(name=f"{row['day_of_week']} {row['meal']}", value=f"{row['day_of_week']}|{row['meal']}")
-            for row in res.data
-            if current.lower() in f"{row['day_of_week']} {row['meal']}".lower()
-        ]
+        choices = []
+        for row in res.data:
+            day = row['day_of_week']
+            meal = row['meal']
+            # 2. Determine the label suffix based on the boolean
+            freq = "permanent" if row['is_permanent'] else "temporary"
+
+            label = f"{day} {meal} ({freq})"
+            value = f"{day}|{meal}"
+
+            # 3. Filter based on what the user is currently typing
+            if current.lower() in label.lower():
+                choices.append(app_commands.Choice(name=label, value=value))
 
         return choices[:25]  # Discord limits autocomplete to 25 choices
 
     @app_commands.command(name="clear_late", description="Select an existing late request to remove")
     @app_commands.autocomplete(selection=late_days_autocomplete)
     async def clear_late(self, interaction: discord.Interaction, selection: str):
-        user_id = str(interaction.user.id)
+        await interaction.response.defer(ephemeral=True)  # Defer first
 
-        # Split the value back into day and meal
+        user_id = str(interaction.user.id)
         try:
             day, meal = selection.split("|")
         except ValueError:
-            await interaction.response.send_message("❌ Invalid selection.", ephemeral=True)
-            return
+            return await interaction.followup.send("❌ Invalid selection.", ephemeral=True)
 
         # Perform the deletion
         res = (supabase.table("lates").delete()
@@ -213,13 +216,15 @@ class Lates(commands.Cog):
                .execute())
 
         if res.data:
-            await interaction.response.send_message(f"🗑️ Your {day} {meal} late has been cleared.", ephemeral=True)
+            await interaction.followup.send(f"🗑️ Your {day} {meal} late has been cleared.", ephemeral=True)
         else:
-            await interaction.response.send_message("❌ Could not find that late. It may have already been cleared.",
-                                                    ephemeral=True)
+            await interaction.followup.send("❌ Could not find that late. It may have already been cleared.",
+                                            ephemeral=True)
 
     @app_commands.command(name="my_lates", description="See all the meals you've requested lates for")
     async def my_lates(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)  # Defer first
+
         user_id = str(interaction.user.id)
 
         res = (supabase
@@ -229,16 +234,15 @@ class Lates(commands.Cog):
                .execute())
 
         if not res.data:
-            return await interaction.response.send_message("You don't have any active lates.", ephemeral=True)
+            return await interaction.followup.send("You don't have any active lates.", ephemeral=True)
 
-        found_lates = []
-        for info in res.data:
-            status = "🔄 Permanent" if info["is_permanent"] else "⏱️ This week only"
-            found_lates.append(f"• **{info['day_of_week']} {info['meal']}**: {status}")
-
+        found_lates = [f"• **{i['day_of_week']} {i['meal']}**: {'🔄 Permanent' if i['is_permanent'] else '⏱️ This week'}"
+                       for i in res.data]
         embed = discord.Embed(title="📋 Your Registered Lates", description="\n".join(found_lates),
                               color=discord.Color.green())
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
 
 
 async def setup(bot):

@@ -87,6 +87,15 @@ async def sync_global(ctx):
     await ctx.send("🌍 Global slash commands synced (may take 1 hour).")
 
 
+@bot.command()
+@commands.is_owner()
+async def clear_ghosts(ctx):
+    # This tells Discord: "Delete every global command I ever made"
+    bot.tree.clear_commands(guild=None)
+    await bot.tree.sync()
+    await ctx.send("👻 Ghost commands cleared! The duplicate should vanish shortly.")
+
+
 # --- Help Command ---
 @bot.tree.command(name="help", description="List all available commands and bot info")
 async def help_command(interaction: discord.Interaction):
