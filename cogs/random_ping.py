@@ -46,7 +46,7 @@ class RandomPing(commands.Cog):
                     )
 
     def cog_unload(self):
-        # Ensure the background task is canceled if the cog is ever unloaded
+        # Ensure the background task is cancelled if the cog is ever unloaded
         self.ping_task.cancel()
 
 async def setup(bot):

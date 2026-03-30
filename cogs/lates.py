@@ -180,29 +180,14 @@ class Lates(commands.Cog):
         user_id = str(interaction.user.id)
 
         # Fetch all lates for this specific user
-        res = (supabase.table("lates")
-               .select("day_of_week", "meal", "is_permanent")
-               .eq("user_id", user_id).execute())
+        res = supabase.table("lates").select("day_of_week", "meal").eq("user_id", user_id).execute()
 
         # Format the choices (e.g., "Monday - Dinner")
-        # choices = [
-        #     app_commands.Choice(name=f"{row['day_of_week']} {row['meal']}", value=f"{row['day_of_week']}|{row['meal']}")
-        #     for row in res.data
-        #     if current.lower() in f"{row['day_of_week']} {row['meal']}".lower()
-        # ]
-        choices = []
-        for row in res.data:
-            day = row['day_of_week']
-            meal = row['meal']
-            # 2. Determine the label suffix based on the boolean
-            freq = "permanent" if row['is_permanent'] else "temporary"
-
-            label = f"{day} {meal} ({freq})"
-            value = f"{day}|{meal}"
-
-            # 3. Filter based on what the user is currently typing
-            if current.lower() in label.lower():
-                choices.append(app_commands.Choice(name=label, value=value))
+        choices = [
+            app_commands.Choice(name=f"{row['day_of_week']} {row['meal']}", value=f"{row['day_of_week']}|{row['meal']}")
+            for row in res.data
+            if current.lower() in f"{row['day_of_week']} {row['meal']}".lower()
+        ]
 
         return choices[:25]  # Discord limits autocomplete to 25 choices
 
