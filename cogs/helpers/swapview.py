@@ -1,5 +1,6 @@
 import discord
 
+
 class SwapView(discord.ui.View):
     def __init__(self, proposer, target_id, p_data, t_data, supabase):
         super().__init__(timeout=300)

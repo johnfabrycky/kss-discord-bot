@@ -1,12 +1,13 @@
+import os
+from collections import Counter
+from datetime import datetime, timedelta
+
 import discord
+import pytz
 from discord import app_commands
 from discord.ext import commands, tasks
-from datetime import datetime, timedelta
-import pytz
-import os
 from flask.cli import load_dotenv
 from supabase import create_client
-from collections import Counter
 
 local_tz = pytz.timezone('America/Chicago')
 load_dotenv()
@@ -144,7 +145,7 @@ class Parking(commands.Cog):
         claim_lines = [f"{key} (x{count})" if count > 1 else key for key, count in claim_groups.items()]
         embed.add_field(
             name="📥 My Reservations",
-            value="\n".join(claim_lines ) or "No active reservations.",
+            value="\n".join(claim_lines) or "No active reservations.",
             inline=False
         )
 
@@ -162,7 +163,8 @@ class Parking(commands.Cog):
         if weeks < 1 or weeks > 12:  # Cap it so someone doesn't book for 5 years
             return await interaction.response.send_message("❌ Please choose between 1 and 12 weeks.", ephemeral=True)
 
-        base_start, base_end, duration = self._parse_range(start_day.value, start_time.value, end_day.value, end_time.value)
+        base_start, base_end, duration = self._parse_range(start_day.value, start_time.value, end_day.value,
+                                                           end_time.value)
         user_id = str(interaction.user.id)
 
         # --- IMMEDIATE VALIDATION ---
@@ -236,7 +238,8 @@ class Parking(commands.Cog):
         spot_query = supabase.table("parking_spots").select("is_guest").eq("spot_number", spot).execute()
 
         if not spot_query.data:
-            return await interaction.response.send_message(f"❌ Spot {spot} is not registered in the system.", ephemeral=True)
+            return await interaction.response.send_message(f"❌ Spot {spot} is not registered in the system.",
+                                                           ephemeral=True)
 
         is_guest_spot = spot_query.data[0]['is_guest']
 
@@ -263,7 +266,8 @@ class Parking(commands.Cog):
                 .execute()
 
             if not offer.data:
-                return await interaction.response.send_message(f"❌ No resident is offering Spot {spot} for that full window.", ephemeral=True)
+                return await interaction.response.send_message(
+                    f"❌ No resident is offering Spot {spot} for that full window.", ephemeral=True)
 
             target_offer_id = offer.data[0]['id']
 
@@ -277,7 +281,8 @@ class Parking(commands.Cog):
         }
         supabase.table("parking_reservations").insert(claim_data).execute()
 
-        await interaction.response.send_message(f"✅ **Spot {spot}** reserved for {c_start.strftime('%a %I%p')}!", ephemeral=False)
+        await interaction.response.send_message(f"✅ **Spot {spot}** reserved for {c_start.strftime('%a %I%p')}!",
+                                                ephemeral=False)
 
     @app_commands.command(name="claim_staff", description="Reserve a staff spot")
     @app_commands.choices(start_day=day_choices, end_day=day_choices, start_time=time_choices, end_time=time_choices)
@@ -417,7 +422,7 @@ class Parking(commands.Cog):
 
             # Status Formatting
             current_claim = next((c for c in spot_claims if c["start"] <= now < c["end"]), None)
-            #header = f"🔴 Busy until {current_claim['end'].strftime('%a %I%p')}" if current_claim else "🟢 Available Now"
+            # header = f"🔴 Busy until {current_claim['end'].strftime('%a %I%p')}" if current_claim else "🟢 Available Now"
             if current_claim:
                 header = f"🔴 Busy until {current_claim['end'].strftime('%a %I%p')}"
             else:
@@ -634,6 +639,7 @@ class Parking(commands.Cog):
 
         embed.set_footer(text="All times are in America/Chicago (CST/CDT)")
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
 
 async def setup(bot):
     await bot.add_cog(Parking(bot))

@@ -1,369 +1,369 @@
 {
-    "Monday": {
-        "Lunch": {
-            "1071425481758486608": {
-                "name": "John Fabrycky",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:28:24.990979-06:00"
-            },
-            "imported_Jenesis": {
-                "name": "Jenesis",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.787816-06:00"
-            },
-            "imported_Matthias": {
-                "name": "Matthias",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.787844-06:00"
-            },
-            "imported_Noah P.": {
-                "name": "Noah P.",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.787853-06:00"
-            },
-            "imported_Aidan": {
-                "name": "Aidan",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.787859-06:00"
-            },
-            "imported_Luke": {
-                "name": "Luke",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.787865-06:00"
-            },
-            "imported_Dawson": {
-                "name": "Dawson",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.787870-06:00"
-            },
-            "imported_Mateo": {
-                "name": "Mateo",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.787875-06:00"
-            },
-            "imported_Seth": {
-                "name": "Seth",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.787880-06:00"
-            },
-            "imported_Elliot": {
-                "name": "Elliot",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.787885-06:00"
-            }
-        },
-        "Dinner": {
-            "imported_Landon": {
-                "name": "Landon",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.789909-06:00"
-            }
-        }
+  "Monday": {
+    "Lunch": {
+      "1071425481758486608": {
+        "name": "John Fabrycky",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:28:24.990979-06:00"
+      },
+      "imported_Jenesis": {
+        "name": "Jenesis",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.787816-06:00"
+      },
+      "imported_Matthias": {
+        "name": "Matthias",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.787844-06:00"
+      },
+      "imported_Noah P.": {
+        "name": "Noah P.",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.787853-06:00"
+      },
+      "imported_Aidan": {
+        "name": "Aidan",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.787859-06:00"
+      },
+      "imported_Luke": {
+        "name": "Luke",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.787865-06:00"
+      },
+      "imported_Dawson": {
+        "name": "Dawson",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.787870-06:00"
+      },
+      "imported_Mateo": {
+        "name": "Mateo",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.787875-06:00"
+      },
+      "imported_Seth": {
+        "name": "Seth",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.787880-06:00"
+      },
+      "imported_Elliot": {
+        "name": "Elliot",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.787885-06:00"
+      }
     },
-    "Tuesday": {
-        "Lunch": {
-            "imported_Jenesis": {
-                "name": "Jenesis",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788118-06:00"
-            },
-            "imported_Seth": {
-                "name": "Seth",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788128-06:00"
-            },
-            "imported_Matthias": {
-                "name": "Matthias",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788134-06:00"
-            },
-            "imported_Michael": {
-                "name": "Michael",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788139-06:00"
-            },
-            "imported_Trevor F": {
-                "name": "Trevor F",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788144-06:00"
-            },
-            "imported_Noah P.": {
-                "name": "Noah P.",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788149-06:00"
-            },
-            "imported_Josh": {
-                "name": "Josh",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788153-06:00"
-            },
-            "imported_Noah K": {
-                "name": "Noah K",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788158-06:00"
-            },
-            "imported_Dawson": {
-                "name": "Dawson",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788163-06:00"
-            },
-            "imported_Nathan J": {
-                "name": "Nathan J",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788168-06:00"
-            }
-        },
-        "Dinner": {
-            "imported_Elliot": {
-                "name": "Elliot",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.790061-06:00"
-            },
-            "imported_Matthias": {
-                "name": "Matthias",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.790070-06:00"
-            },
-            "imported_Mateo": {
-                "name": "Mateo",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.790077-06:00"
-            }
-        }
-    },
-    "Wednesday": {
-        "Lunch": {
-            "imported_Jenesis": {
-                "name": "Jenesis",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788334-06:00"
-            },
-            "imported_Matthias": {
-                "name": "Matthias",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788343-06:00"
-            },
-            "imported_Noah P.": {
-                "name": "Noah P.",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788349-06:00"
-            },
-            "imported_Aidan": {
-                "name": "Aidan",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788354-06:00"
-            },
-            "imported_Luke": {
-                "name": "Luke",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788359-06:00"
-            },
-            "imported_Elliot": {
-                "name": "Elliot",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788364-06:00"
-            },
-            "imported_Michael": {
-                "name": "Michael",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788368-06:00"
-            },
-            "imported_Dawson": {
-                "name": "Dawson",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788374-06:00"
-            },
-            "imported_Mateo": {
-                "name": "Mateo",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788379-06:00"
-            },
-            "imported_walker": {
-                "name": "walker",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788384-06:00"
-            },
-            "imported_Seth": {
-                "name": "Seth",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788389-06:00"
-            },
-            "imported_Nate J": {
-                "name": "Nate J",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788394-06:00"
-            }
-        },
-        "Dinner": {
-            "imported_Dawson": {
-                "name": "Dawson",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.790230-06:00"
-            }
-        }
-    },
-    "Thursday": {
-        "Lunch": {
-            "imported_Jenesis": {
-                "name": "Jenesis",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788573-06:00"
-            },
-            "imported_Matthias": {
-                "name": "Matthias",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788581-06:00"
-            },
-            "imported_Michael": {
-                "name": "Michael",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788587-06:00"
-            },
-            "imported_Noah P.": {
-                "name": "Noah P.",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788593-06:00"
-            },
-            "imported_Trevor F": {
-                "name": "Trevor F",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788598-06:00"
-            },
-            "imported_Noah K": {
-                "name": "Noah K",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788602-06:00"
-            },
-            "imported_Seth": {
-                "name": "Seth",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788607-06:00"
-            },
-            "imported_Dawson": {
-                "name": "Dawson",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788612-06:00"
-            },
-            "imported_Elliot": {
-                "name": "Elliot",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788617-06:00"
-            },
-            "imported_Nathan J": {
-                "name": "Nathan J",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788622-06:00"
-            }
-        },
-        "Dinner": {}
-    },
-    "Friday": {
-        "Lunch": {
-            "imported_Matthias": {
-                "name": "Matthias",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788786-06:00"
-            },
-            "imported_Noah P.": {
-                "name": "Noah P.",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788794-06:00"
-            },
-            "imported_Michael": {
-                "name": "Michael",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788800-06:00"
-            },
-            "imported_Mateo": {
-                "name": "Mateo",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788805-06:00"
-            },
-            "imported_walker": {
-                "name": "walker",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788821-06:00"
-            },
-            "imported_Nate J": {
-                "name": "Nate J",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.788828-06:00"
-            }
-        },
-        "Dinner": {
-            "imported_walker": {
-                "name": "walker",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.790567-06:00"
-            },
-            "imported_Elliot": {
-                "name": "Elliot",
-                "role": "koinonian",
-                "permanent": true,
-                "date_added": "2026-02-10T18:47:00.790578-06:00"
-            }
-        }
-    },
-    "Saturday": {
-        "Lunch": {},
-        "Dinner": {}
-    },
-    "Sunday": {
-        "Lunch": {},
-        "Dinner": {}
+    "Dinner": {
+      "imported_Landon": {
+        "name": "Landon",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.789909-06:00"
+      }
     }
+  },
+  "Tuesday": {
+    "Lunch": {
+      "imported_Jenesis": {
+        "name": "Jenesis",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788118-06:00"
+      },
+      "imported_Seth": {
+        "name": "Seth",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788128-06:00"
+      },
+      "imported_Matthias": {
+        "name": "Matthias",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788134-06:00"
+      },
+      "imported_Michael": {
+        "name": "Michael",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788139-06:00"
+      },
+      "imported_Trevor F": {
+        "name": "Trevor F",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788144-06:00"
+      },
+      "imported_Noah P.": {
+        "name": "Noah P.",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788149-06:00"
+      },
+      "imported_Josh": {
+        "name": "Josh",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788153-06:00"
+      },
+      "imported_Noah K": {
+        "name": "Noah K",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788158-06:00"
+      },
+      "imported_Dawson": {
+        "name": "Dawson",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788163-06:00"
+      },
+      "imported_Nathan J": {
+        "name": "Nathan J",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788168-06:00"
+      }
+    },
+    "Dinner": {
+      "imported_Elliot": {
+        "name": "Elliot",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.790061-06:00"
+      },
+      "imported_Matthias": {
+        "name": "Matthias",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.790070-06:00"
+      },
+      "imported_Mateo": {
+        "name": "Mateo",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.790077-06:00"
+      }
+    }
+  },
+  "Wednesday": {
+    "Lunch": {
+      "imported_Jenesis": {
+        "name": "Jenesis",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788334-06:00"
+      },
+      "imported_Matthias": {
+        "name": "Matthias",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788343-06:00"
+      },
+      "imported_Noah P.": {
+        "name": "Noah P.",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788349-06:00"
+      },
+      "imported_Aidan": {
+        "name": "Aidan",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788354-06:00"
+      },
+      "imported_Luke": {
+        "name": "Luke",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788359-06:00"
+      },
+      "imported_Elliot": {
+        "name": "Elliot",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788364-06:00"
+      },
+      "imported_Michael": {
+        "name": "Michael",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788368-06:00"
+      },
+      "imported_Dawson": {
+        "name": "Dawson",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788374-06:00"
+      },
+      "imported_Mateo": {
+        "name": "Mateo",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788379-06:00"
+      },
+      "imported_walker": {
+        "name": "walker",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788384-06:00"
+      },
+      "imported_Seth": {
+        "name": "Seth",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788389-06:00"
+      },
+      "imported_Nate J": {
+        "name": "Nate J",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788394-06:00"
+      }
+    },
+    "Dinner": {
+      "imported_Dawson": {
+        "name": "Dawson",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.790230-06:00"
+      }
+    }
+  },
+  "Thursday": {
+    "Lunch": {
+      "imported_Jenesis": {
+        "name": "Jenesis",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788573-06:00"
+      },
+      "imported_Matthias": {
+        "name": "Matthias",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788581-06:00"
+      },
+      "imported_Michael": {
+        "name": "Michael",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788587-06:00"
+      },
+      "imported_Noah P.": {
+        "name": "Noah P.",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788593-06:00"
+      },
+      "imported_Trevor F": {
+        "name": "Trevor F",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788598-06:00"
+      },
+      "imported_Noah K": {
+        "name": "Noah K",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788602-06:00"
+      },
+      "imported_Seth": {
+        "name": "Seth",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788607-06:00"
+      },
+      "imported_Dawson": {
+        "name": "Dawson",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788612-06:00"
+      },
+      "imported_Elliot": {
+        "name": "Elliot",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788617-06:00"
+      },
+      "imported_Nathan J": {
+        "name": "Nathan J",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788622-06:00"
+      }
+    },
+    "Dinner": {}
+  },
+  "Friday": {
+    "Lunch": {
+      "imported_Matthias": {
+        "name": "Matthias",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788786-06:00"
+      },
+      "imported_Noah P.": {
+        "name": "Noah P.",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788794-06:00"
+      },
+      "imported_Michael": {
+        "name": "Michael",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788800-06:00"
+      },
+      "imported_Mateo": {
+        "name": "Mateo",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788805-06:00"
+      },
+      "imported_walker": {
+        "name": "walker",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788821-06:00"
+      },
+      "imported_Nate J": {
+        "name": "Nate J",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.788828-06:00"
+      }
+    },
+    "Dinner": {
+      "imported_walker": {
+        "name": "walker",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.790567-06:00"
+      },
+      "imported_Elliot": {
+        "name": "Elliot",
+        "role": "koinonian",
+        "permanent": true,
+        "date_added": "2026-02-10T18:47:00.790578-06:00"
+      }
+    }
+  },
+  "Saturday": {
+    "Lunch": {},
+    "Dinner": {}
+  },
+  "Sunday": {
+    "Lunch": {},
+    "Dinner": {}
+  }
 }
