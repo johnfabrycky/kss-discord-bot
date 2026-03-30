@@ -1,6 +1,7 @@
 import asyncio
 import random
 
+import discord
 from discord.ext import commands
 
 
@@ -8,7 +9,7 @@ class RandomPing(commands.Cog):
     KOIN_STRAT_SUTTON_CHANNEL_ID = 1402464339352358924
     KOIN_CHANNEL_ID = 1401635095021879416
     TESTING_CHANNEL_ID = 1407462555974107277
-    
+
     # List of quotes to randomly select from
     QUOTES = [
         # DIALOGUE 1
@@ -45,23 +46,23 @@ class RandomPing(commands.Cog):
 
             if send_channel is not None:
                 guild = send_channel.guild
-                
+
                 # Filter for humans who have permission to view the channel AND are online/idle/dnd
                 eligible_members = [
-                    m for m in guild.members 
-                    if not m.bot 
-                    and send_channel.permissions_for(m).view_channel
-                    and m.status != discord.Status.offline
+                    m for m in guild.members
+                    if not m.bot
+                       and send_channel.permissions_for(m).view_channel
+                       and m.status != discord.Status.offline
                 ]
 
                 if eligible_members:
                     # Pick a random eligible member and a random quote
                     target = random.choice(eligible_members)
                     quote = random.choice(self.QUOTES)
-                    
+
                     # Send the message and automatically delete it after 5 seconds
                     await send_channel.send(
-                        f"{target.mention} {quote}", 
+                        f"{target.mention} {quote}",
                         delete_after=5
                     )
 
