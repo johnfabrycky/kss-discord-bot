@@ -1,9 +1,11 @@
+import os
+
 import discord
 from discord.ext import commands
-import os
 from dotenv import load_dotenv
-from keep_alive import keep_alive
 from supabase import create_client
+
+from keep_alive import keep_alive
 
 load_dotenv()
 
@@ -116,6 +118,7 @@ async def help_command(interaction: discord.Interaction):
 
     embed.set_footer(text="Pro-tip: Slash commands show you exactly what to type as you go!")
     await interaction.response.send_message(embed=embed, ephemeral=True)
+
 
 if __name__ == "__main__":
     keep_alive()

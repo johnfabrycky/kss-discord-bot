@@ -10,6 +10,7 @@ url = os.environ.get("SUPABASE_URL")
 key = os.environ.get("SUPABASE_SERVICE_KEY")
 supabase = create_client(url, key)
 
+
 # This class acts as your "Schema Object"
 # args: string table_name:      name of the SQL table
 #       string transform_func:  function used to transform the CSV file into proper SQL format
@@ -42,6 +43,7 @@ def upload_from_csv(file_path, schema: TableSchema):
     except Exception as e:
         print(f"❌ Error uploading to {schema.table_name}: {e}")
 
+
 # args: csv_reader  which has already opened the csv file and is parsing it
 # returns:  rows    the rows which are the parsed csv file, ready to be inserted to the supabase tables
 def transform_meals(csv_reader):
@@ -60,6 +62,7 @@ def transform_meals(csv_reader):
                 })
                 meal_id += 1
     return rows
+
 
 # Create the "Object" for the meals table
 meals_schema = TableSchema("meals", transform_meals)

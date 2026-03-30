@@ -1,9 +1,9 @@
-import discord
-from discord.ext import commands
-from discord import app_commands
-import pandas as pd
-import pytz
 from datetime import datetime
+
+import discord
+import pytz
+from discord import app_commands
+from discord.ext import commands
 
 local_tz = pytz.timezone('America/Chicago')
 
@@ -69,6 +69,7 @@ class Meals(commands.Cog):
         embed.add_field(name="🌙 Dinner", value=dinner, inline=False)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
 
 async def setup(bot):
     await bot.add_cog(Meals(bot))

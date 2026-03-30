@@ -1,9 +1,11 @@
-import discord
-from discord.ext import commands
-from discord import app_commands
-from supabase import create_client, Client
-from cogs.helpers.swapview import SwapView
 import os
+
+import discord
+from discord import app_commands
+from discord.ext import commands
+from supabase import create_client, Client
+
+from cogs.helpers.swapview import SwapView
 
 
 class Shifts(commands.Cog):
@@ -118,10 +120,10 @@ class Shifts(commands.Cog):
         user_id = str(interaction.user.id)
         # Finds shifts where you are the current owner or original seller (if unclaimed)
         response = (self.supabase.table("shifts")
-                .select("*")
-                .eq("seller_id", user_id)
-                .is_("claimed_by_id", "null")
-                .execute())
+                    .select("*")
+                    .eq("seller_id", user_id)
+                    .is_("claimed_by_id", "null")
+                    .execute())
 
         return [
             app_commands.Choice(name=f"{s['shift_type']} ({s['day_of_week']})", value=str(s['id']))
@@ -143,10 +145,10 @@ class Shifts(commands.Cog):
         try:
             # Find shifts where the target is the owner OR the unclaimed seller
             response = (self.supabase.table("shifts")
-                     .select("*")
-                     .eq("seller_id", target_id)
-                     .is_("claimed_by_id", "null")
-                     .execute())
+                        .select("*")
+                        .eq("seller_id", target_id)
+                        .is_("claimed_by_id", "null")
+                        .execute())
 
             return [
                 app_commands.Choice(name=f"{s['shift_type']} ({s['day_of_week']})", value=str(s['id']))
@@ -158,7 +160,8 @@ class Shifts(commands.Cog):
             return []
 
     @app_commands.command(name="swap_shift", description="Propose a specific 1-for-1 shift trade")
-    @app_commands.autocomplete(my_shift=my_owned_shifts_autocomplete, target_user=target_user_autocomplete, their_shift=target_shifts_autocomplete)
+    @app_commands.autocomplete(my_shift=my_owned_shifts_autocomplete, target_user=target_user_autocomplete,
+                               their_shift=target_shifts_autocomplete)
     async def swap(self, interaction: discord.Interaction, target_user: str, my_shift: str,
                    their_shift: str):
         # 1. Validation Guard: Check if inputs are actually numeric IDs
