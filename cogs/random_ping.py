@@ -47,10 +47,10 @@ class RandomPing(commands.Cog):
         await self.bot.wait_until_ready()
 
         while not self.bot.is_closed():
-            # Generate a random sleep time between 5 minutes and 1 hour
+            # Generate a random sleep time between 10 minutes and 1 hour
             # random time generation
 
-            wait_time = random.uniform(300.0, 1800.0)
+            wait_time = random.uniform(600.0, 3600.0)
             await asyncio.sleep(wait_time)
             send_channel = self.bot.get_channel(self.target_channel_id)
 
@@ -73,7 +73,7 @@ class RandomPing(commands.Cog):
                     # Send the message and automatically delete it after 3.5 seconds
                     await send_channel.send(
                         f"{target.mention} {quote}",
-                        delete_after=3.5
+                        delete_after=7.0
                     )
 
     def cog_unload(self):
