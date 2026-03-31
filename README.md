@@ -88,14 +88,14 @@ Pull Request.
     }
    }
 This will run "Optimize Imports" and "Reformat Code" every time you save.
-2. Pull Requests: Submit a PR to 'main' once work is verified.
-3. If you wish to preview the behavior of the PR, add [render preview] to the PR title.
+4. Pull Requests: Submit a PR to 'main' once work is verified.
+5. If you wish to preview the behavior of the PR, add [render preview] to the PR title.
    Then, make sure to deploy the felipe-dev bot on render and invite it to the server.
    Once done testing the bot, kick it from the server so that it's commands don't continue to appear alongside the
    commands for felipe-prod.
    Remember that the felipe-dev bot currently does not have an associated uptime robot checker so it will spin down
    after 15 minutes of inactivity.
-4. Deployment: Merges occur during SCHEDULED MAINTENANCE to ensure stability.
+6. Deployment: Merges occur during SCHEDULED MAINTENANCE to ensure stability.
 
 ---
 
