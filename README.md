@@ -112,16 +112,20 @@ the Koin/Strat/Sutton google profiles (ask an RA of BHM if you need the email ad
 
 ## 📡 How to host the bot
 
-1. Request to join "johnfabrycky's Org" on [Supabase](https://supabase.com/dashboard/org/ejwmbmbydveoeffdnpox) and to be
+1. Create a free account on [Supabase](https://supabase.com/). Request to join "johnfabrycky's Org" on [Supabase](https://supabase.com/dashboard/org/ejwmbmbydveoeffdnpox) and to be
    given admin privileges so that you have the authority to perform CRUD operations on the database.
-2. Create a free account with [Uptime Robot](https://dashboard.uptimerobot.com/monitors).
-3. Create a free account on [Render](https://dashboard.render.com/), go to the home page and select "New Web Service"
+2. Create a free account with [Healthchecks.io](https://healthchecks.io/projects/2cbc36e8-0a97-4fbb-b655-0016d22acf42/checks/). Ask the current owner (John Fabrycky as of 3/31/26)
+   to give you team access and if necessary transfer ownership to you.
+    <img width="591" height="846" alt="image" src="https://github.com/user-attachments/assets/50575de7-1281-4d6d-9f9d-5c657b35b6ea" />
+
+4. Create a free account with [Uptime Robot](https://dashboard.uptimerobot.com/monitors).
+5. Create a free account on [Render](https://dashboard.render.com/), go to the home page and select "New Web Service"
    under "Web Services"
-4. Choose "Github" as your provider
-5. Find the "felipe" git repository and select it.
-6. Use most of the default entries. For Start Command, replace the default with "python main.py".
-7. Use the free tier, under "For hobby projects".
-8. Under environment, you need to add three environment variables. They will be named DISCORD_TOKEN,
+6. Choose "Github" as your provider
+7. Find the "felipe" git repository and select it.
+8. Use most of the default entries. For Start Command, replace the default with "python main.py".
+9. Use the free tier, under "For hobby projects".
+10. Under environment, you need to add three environment variables. They will be named DISCORD_TOKEN,
    SUPABASE_SERVICE_KEY,
    and SUPABASE_URL.
    Under the environment tab, click edit on the "Environment Variables" Section. In the bottom left of the box,
@@ -140,10 +144,10 @@ the Koin/Strat/Sutton google profiles (ask an RA of BHM if you need the email ad
     4. SUPABASE_SERVICE_KEY - On Supabase, go to Settings -> Configuration -> API Keys, then under "Secret Keys", find
        the
        default key, press the "copy" icon to put it on your clipboard, then return to render environment and paste it into the appropriate box.
-10. Select the Events tab, then find the "Manual Deploy" button, click it and select "Deploy latest commit".
-11. Go to Monitor -> Logs. It should build in under 5 minutes, with the success message "==> Your service is live 🎉",
+11. Select the Events tab, then find the "Manual Deploy" button, click it and select "Deploy latest commit".
+12. Go to Monitor -> Logs. It should build in under 5 minutes, with the success message "==> Your service is live 🎉",
     and no error messages.
-12. Go to Events. ON the top bar towards the bottom there will be a purple link with a copy symbol next to it, that
+13. Go to Events. ON the top bar towards the bottom there will be a purple link with a copy symbol next to it, that
     ends in "onrender.com".
     <img width="1611" height="541" alt="Felipe_ping_instr_picture" src="https://github.com/user-attachments/assets/8f8181ee-beb3-49f4-bdcf-f808ed7aabc3" />
     Copy the link (a.k.a monitor) to your clipboard.
