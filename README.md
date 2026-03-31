@@ -69,6 +69,20 @@ Pull Request.
 
 1. Branching: For any improvements to current features, use a pre-existing branch (not main).
 2. Create a new branch if building a new cog (e.g., git checkout -b feature-name).
+3. If developing in pyCharm, run "Code->Reformat code" from the root directory, as shown in the screenshot. <img width="715" height="622" alt="image" src="https://github.com/user-attachments/assets/a13d8e64-7f3a-4893-b0f9-4120f172d5d2" />
+If developing in VSCode, install the ruff extension. Add the following to your settings.json file:
+{
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit",
+            "source.fixAll": "explicit"
+        }
+    }
+}
+This will run "Optimize Imports" and "Reformat Code" every time you save.
+
 2. Pull Requests: Submit a PR to 'main' once work is verified.
 3. If you wish to preview the behavior of the PR, add [render preview] to the PR title.
    Then, make sure to deploy the felipe-dev bot on render and invite it to the server.
