@@ -3,6 +3,18 @@
 A multi-purpose utility bot for the KSS community, managing parking, meal schedules, late plates, and social movie
 sessions.
 
+## 📖 Table of Contents
+1. [Active Functionality](#-active-functionality)
+    * [Parking Utility](#-parking-utility)
+    * [Late Plates](#-late-plates)
+    * [Meal Schedule](#-meal-schedule)
+    * [Feedback](#-feedback)
+2. [To-Implement](#-to-implement)
+3. [Development & Branching](#-development--branching)
+4. [Trouble-shooting a down event](#-trouble-shooting-a-down-event)
+5. [Maintenance](#-maintenance)
+6. [How to host the bot](#-how-to-host-the-bot)
+
 # FOR APRIL FOOLS WE ARE GOING TO RANDOMLY PING SOMEONE EVERY 3-6 MINUTES FOR THE WHOLE 24 HOURS
 
 ## 🚀 Active Functionality
@@ -69,16 +81,51 @@ Pull Request.
 
 1. Branching: For any improvements to current features, use a pre-existing branch (not main).
 2. Create a new branch if building a new cog (e.g., git checkout -b feature-name).
-2. Pull Requests: Submit a PR to 'main' once work is verified.
-3. If you wish to preview the behavior of the PR, add [render preview] to the PR title.
+3. If developing in PyCharm, run "Code->Reformat Code" from your root directory, as shown in the screenshot.
+   <div>
+      <img width="714" height="618" alt="image" src="https://github.com/user-attachments/assets/fe242820-dce4-48c0-bd52-eee0177a4a62" />
+   </div>
+   
+   If developing in VSCode, install the Ruff extension, then add this to your settings.json file:
+   
+   ```json
+   {
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit",
+            "source.fixAll": "explicit"
+        }
+    }
+   }
+This will run "Optimize Imports" and "Reformat Code" every time you save.
+
+4. Pull Requests: Submit a PR to 'main' once work is verified.
+
+5. If you wish to preview the behavior of the PR, add [render preview] to the PR title.
    Then, make sure to deploy the felipe-dev bot on render and invite it to the server.
    Once done testing the bot, kick it from the server so that it's commands don't continue to appear alongside the
    commands for felipe-prod.
    Remember that the felipe-dev bot currently does not have an associated uptime robot checker so it will spin down
    after 15 minutes of inactivity.
-4. Deployment: Merges occur during SCHEDULED MAINTENANCE to ensure stability.
+   
+7. Deployment: Merges occur during SCHEDULED MAINTENANCE to ensure stability.
 
 ---
+
+## 🚨 Trouble-shooting a down event
+
+First, go to the [Render](https://dashboard.render.com/) page for the Discord Web Bot, go to Logs, and see if there are any error logs that
+indicate why the service may have gone down. If there are, use those to troubleshoot. If you lack the expertise
+to fix the errors, you may at least be able to identify the functions that are causing issues and create a temporary
+PR to remove that functionality so that the bot will function properly while the issue can be resolved.
+
+If there are no error messages in the logs, find the monitor link (see "How to host the bot" below), and open
+the link in a new tab. Wait for it to build properly. Once you can refresh the monitor link and there are no
+building messages, but it just says "I'm alive", that indicates the service is back up. 
+
+Sometimes down events just happen, and often they can be easily resolved just by pinging the monitor link.
 
 ## 🔧 Maintenance
 
@@ -151,9 +198,11 @@ the Koin/Strat/Sutton google profiles (ask an RA of BHM if you need the email ad
     and no error messages.
 14. Go to Events. ON the top bar towards the bottom there will be a purple link with a copy symbol next to it, that
     ends in "onrender.com".
-    <img width="1611" height="541" alt="Felipe_ping_instr_picture" src="https://github.com/user-attachments/assets/8f8181ee-beb3-49f4-bdcf-f808ed7aabc3" />
+    <div>
+       <img width="1611" height="541" alt="Felipe_ping_instr_picture" src="https://github.com/user-attachments/assets/8f8181ee-beb3-49f4-bdcf-f808ed7aabc3" />
+    </div>
     Copy the link (a.k.a monitor) to your clipboard.
-15. On UptimeRobot, create a new Monitor. Under "URL to monitor", enter the monitor from your clipboard. Under
+16. On UptimeRobot, create a new Monitor. Under "URL to monitor", enter the monitor from your clipboard. Under
     "How will we notify you?", select your preferred means of notification for a down event. Under "Monitor interval",
     leave it at 5m. Then click "Create monitor".
-16. Congratulations, you have fully configured the discord bot to run on a hosted service for free 🎉🎺🎉🎺.
+17. Congratulations, you have fully configured the discord bot to run on a hosted service for free 🎉🎺🎉🎺.
