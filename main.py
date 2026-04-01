@@ -20,7 +20,7 @@ INITIAL_EXTENSIONS = [
     'cogs.parking',
     # 'cogs.shifts',
     'cogs.feedback',
-    'cogs.random_ping'
+    # 'cogs.random_ping'
 ]
 
 
@@ -57,7 +57,7 @@ class GeraldBot(commands.Bot):
         # 3. Cache Initial Data
         # The 'state' is what actually shows up in the bubble
         await self.change_presence(
-            activity=discord.CustomActivity(name="Custom Status", state="I am.")
+            activity=discord.CustomActivity(name="Custom Status", state="Enter /help to see what I can do!")
         )
 
         try:
@@ -101,7 +101,7 @@ async def clear_ghosts(ctx):
 async def help_command(interaction: discord.Interaction):
     embed = discord.Embed(
         title="🤖 Bot Command Center",
-        description="I manage parking, late plates, movie sessions, meal schedules, meal shifts, and feedback!",
+        description="I manage parking, late plates, meal schedules, and feedback!",
         color=discord.Color.green()
     )
 
