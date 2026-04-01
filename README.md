@@ -15,8 +15,6 @@ sessions.
 5. [Maintenance](#-maintenance)
 6. [How to host the bot](#-how-to-host-the-bot)
 
-# FOR APRIL FOOLS WE ARE GOING TO RANDOMLY PING SOMEONE EVERY 3-6 MINUTES FOR THE WHOLE 24 HOURS
-
 ## 🚀 Active Functionality
 
 ### 🚗 Parking Utility
