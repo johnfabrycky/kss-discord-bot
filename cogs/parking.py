@@ -24,7 +24,7 @@ class Parking(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.valid_spots = list(range(1, 34)) + list(range(41, 46))
+        self.valid_spots = list(range(1, 34)) + list(range(41, 47))
         self.total_staff_spots = 2
 
     # --- INTERNAL UTILITIES ---
@@ -69,24 +69,27 @@ class Parking(commands.Cog):
         return False
 
     async def initialize_parking_spots(self):
-        """Ensures all valid spots are registered in the Supabase parent table."""
-        # Define the full list of spots to ensure exist
         all_spot_configs = []
 
-        # Resident spots: 1-33 and 41-45
+        # All regular spots (including the Guest spot 46)
+        # now share the 'resident' type because they follow the same claim command
         for s in self.valid_spots:
-            all_spot_configs.append({"spot_number": s, "spot_type": "resident"})
+            all_spot_configs.append({
+                "spot_number": s,
+                "spot_type": "resident",
+                "is_guest": (s == 46)  # Automatically sets True for 46, False for others
+            })
 
-        # Permanent Guest spot: 46
-        # all_spot_configs.append({"spot_number": 46, "spot_type": "guest"})
-
-        # Staff spots: 998 and 999
-        all_spot_configs.append({"spot_number": 998, "spot_type": "staff"})
-        all_spot_configs.append({"spot_number": 999, "spot_type": "staff"})
+        # Staff spots
+        staff_start = 1000 - self.total_staff_spots
+        for i in range(staff_start, 1000):
+            all_spot_configs.append({
+                "spot_number": i,
+                "spot_type": "staff",
+                "is_guest": False
+            })
 
         try:
-            # 'upsert' prevents 'duplicate key' errors by updating if it exists
-            # or inserting if it doesn't.
             supabase.table("parking_spots").upsert(
                 all_spot_configs,
                 on_conflict="spot_number"
@@ -595,6 +598,15 @@ class Parking(commands.Cog):
 
     @app_commands.command(name="parking_help", description="How to use the parking system")
     async def parking_help(self, interaction: discord.Interaction):
+        # 1. Fetch all guest spots from the database
+        try:
+            guest_query = supabase.table("parking_spots").select("spot_number").eq("is_guest", True).execute()
+            guest_spots = [str(r['spot_number']) for r in guest_query.data]
+            guest_list_str = ", ".join(guest_spots) if guest_spots else "None"
+        except Exception as e:
+            print(f"Error fetching guest spots for help: {e}")
+            guest_list_str = "Error loading spots"
+
         embed = discord.Embed(
             title="🚗 Parking System Guide",
             description="Manage resident, guest, and staff parking spots efficiently.",
@@ -616,11 +628,12 @@ class Parking(commands.Cog):
         embed.add_field(
             name="🏠 Resident & Guest Spots",
             value=(
-                "**Spot 46 (Guest):** Always available to claim up to 7 days in advance.\n"
+                f"**Guest Spot(s): {guest_list_str}**\n"
+                "Always available to claim up to 7 days in advance.\n\n"
                 "**Resident Spots (1-33, 41-45):** Must be offered by the owner first.\n\n"
                 "`/offer_spot` - Owners list their spot for others to use.\n"
                 "`/claim_spot` - Reserve an offered resident spot or the guest spot.\n"
-                "   *Note: Claims must be between 2 hours and 7 days long.*"
+                "   *Note: Claims must be between 2 hours and 7 days long.*   "
             ),
             inline=False
         )
