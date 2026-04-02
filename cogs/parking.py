@@ -1,9 +1,11 @@
+from datetime import datetime, timedelta
+
 import discord
 from discord import app_commands
 from discord.ext import commands
+
 from helpers.constants import WEEKDAYS, VALID_SPOTS, LOCAL_TZ, STAFF_SPOTS
 from helpers.parking_service import ParkingService
-from datetime import datetime, timedelta
 
 
 class Parking(commands.Cog):
@@ -14,6 +16,10 @@ class Parking(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.service = ParkingService()
+
+    # Add this back to your Parking class in parking.py if you want to keep main.py as is:
+    async def initialize_parking_spots(self):
+        await self.service.initialize_spots()  # You'd need to create this in Service
 
     @app_commands.command(name="offer_spot", description="List your spot as available")
     @app_commands.choices(start_day=day_choices, end_day=day_choices, start_time=time_choices, end_time=time_choices)
@@ -136,15 +142,69 @@ class Parking(commands.Cog):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @app_commands.command(name="cancel")
-    async def cancel(self, interaction: discord.Interaction, spot: str):
-        if not spot.startswith("sig_"): return await interaction.response.send_message("❌ Select from list.",
-                                                                                       ephemeral=True)
-        p = spot.split("_")
-        success, msg, pings = await self.service.cancel_action(interaction.user.id, p[1], int(p[2]), int(p[3]),
-                                                               int(p[4]), int(p[5]))
+    async def cancel_spot_autocomplete(self, interaction: discord.Interaction, current: str) -> list[
+        app_commands.Choice[str]]:
+        user_id = str(interaction.user.id)
+        choices = []
+        now = datetime.now(LOCAL_TZ)
 
-        if pings: await interaction.channel.send(f"⚠️ **Attention {', '.join(pings)}**: {msg}")
+        try:
+            # 1. Fetch raw data from the service
+            # (Note: You can reuse get_parking_data or add a specific 'get_user_activity' to Service)
+            offers_res = self.service.supabase.table("parking_offers").select("*").eq("owner_id", user_id).gt(
+                "end_time", now.isoformat()).execute()
+            claims_res = self.service.supabase.table("parking_reservations").select("*").eq("claimer_id", user_id).gt(
+                "end_time", now.isoformat()).execute()
+
+            # 2. Process Offers
+            offer_seen = set()
+            for off in (offers_res.data or []):
+                start = datetime.fromisoformat(off['start_time']).astimezone(LOCAL_TZ)
+                end = datetime.fromisoformat(off['end_time']).astimezone(LOCAL_TZ)
+
+                # Signature matches the parsing logic in your Service
+                sig = f"sig_offer_{off['spot_number']}_{start.weekday()}_{start.hour}_{end.hour}"
+                label = f"Withdraw ALL: Spot {off['spot_number']} {start.strftime('%a %I%p')}-{end.strftime('%I%p')}"
+
+                if sig not in offer_seen and current.lower() in label.lower():
+                    choices.append(app_commands.Choice(name=label, value=sig))
+                    offer_seen.add(sig)
+
+            # 3. Process Claims
+            claim_seen = set()
+            for c in (claims_res.data or []):
+                start = datetime.fromisoformat(c['start_time']).astimezone(LOCAL_TZ)
+                end = datetime.fromisoformat(c['end_time']).astimezone(LOCAL_TZ)
+                spot_label = "Staff" if c['spot_number'] in STAFF_SPOTS else f"Spot {c['spot_number']}"
+
+                sig = f"sig_claim_{c['spot_number']}_{start.weekday()}_{start.hour}_{end.hour}"
+                label = f"Cancel ALL: {spot_label} {start.strftime('%a %I%p')}-{end.strftime('%I%p')}"
+
+                if sig not in claim_seen and current.lower() in label.lower():
+                    choices.append(app_commands.Choice(name=label, value=sig))
+                    claim_seen.add(sig)
+
+        except Exception as e:
+            print(f"Autocomplete Error: {e}")
+            return []
+
+        return choices[:25]  # Discord limit
+
+    @app_commands.command(name="cancel", description="Cancel your reservations or withdraw offers")
+    @app_commands.autocomplete(spot=cancel_spot_autocomplete)  # Link it here!
+    async def cancel(self, interaction: discord.Interaction, spot: str):
+        if not spot.startswith("sig_"):
+            return await interaction.response.send_message("❌ Please select an option from the list.", ephemeral=True)
+
+        p = spot.split("_")
+        # p[1]=type, p[2]=spot_num, p[3]=weekday, p[4]=start_h, p[5]=end_h
+        success, msg, pings = await self.service.cancel_action(
+            interaction.user.id, p[1], int(p[2]), int(p[3]), int(p[4]), int(p[5])
+        )
+
+        if pings:
+            await interaction.channel.send(f"⚠️ **Attention {', '.join(pings)}**: {msg}")
+
         await interaction.response.send_message(msg, ephemeral=True)
 
     @app_commands.command(name="parking_help")

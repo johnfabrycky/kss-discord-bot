@@ -4,6 +4,7 @@ A multi-purpose utility bot for the KSS community, managing parking, meal schedu
 sessions.
 
 ## 📖 Table of Contents
+
 1. [Active Functionality](#-active-functionality)
     * [Parking Utility](#-parking-utility)
     * [Late Plates](#-late-plates)
@@ -83,9 +84,9 @@ Pull Request.
    <div>
       <img width="714" height="618" alt="image" src="https://github.com/user-attachments/assets/fe242820-dce4-48c0-bd52-eee0177a4a62" />
    </div>
-   
+
    If developing in VSCode, install the Ruff extension, then add this to your settings.json file:
-   
+
    ```json
    {
     "[python]": {
@@ -97,6 +98,7 @@ Pull Request.
         }
     }
    }
+
 This will run "Optimize Imports" and "Reformat Code" every time you save.
 
 4. Pull Requests: Submit a PR to 'main' once work is verified.
@@ -107,21 +109,22 @@ This will run "Optimize Imports" and "Reformat Code" every time you save.
    commands for felipe-prod.
    Remember that the felipe-dev bot currently does not have an associated uptime robot checker so it will spin down
    after 15 minutes of inactivity.
-   
+
 7. Deployment: Merges occur during SCHEDULED MAINTENANCE to ensure stability.
 
 ---
 
 ## 🚨 Trouble-shooting a down event
 
-First, go to the [Render](https://dashboard.render.com/) page for the Discord Web Bot, go to Logs, and see if there are any error logs that
+First, go to the [Render](https://dashboard.render.com/) page for the Discord Web Bot, go to Logs, and see if there are
+any error logs that
 indicate why the service may have gone down. If there are, use those to troubleshoot. If you lack the expertise
 to fix the errors, you may at least be able to identify the functions that are causing issues and create a temporary
 PR to remove that functionality so that the bot will function properly while the issue can be resolved.
 
 If there are no error messages in the logs, find the monitor link (see "How to host the bot" below), and open
 the link in a new tab. Wait for it to build properly. Once you can refresh the monitor link and there are no
-building messages, but it just says "I'm alive", that indicates the service is back up. 
+building messages, but it just says "I'm alive", that indicates the service is back up.
 
 Sometimes down events just happen, and often they can be easily resolved just by pinging the monitor link.
 
@@ -157,11 +160,13 @@ the Koin/Strat/Sutton google profiles (ask an RA of BHM if you need the email ad
 
 ## 📡 How to host the bot
 
-1. Create a free account on [Supabase](https://supabase.com/). Request to join "johnfabrycky's Org" on [Supabase](https://supabase.com/dashboard/org/ejwmbmbydveoeffdnpox) and to be
+1. Create a free account on [Supabase](https://supabase.com/). Request to join "johnfabrycky's Org"
+   on [Supabase](https://supabase.com/dashboard/org/ejwmbmbydveoeffdnpox) and to be
    given admin privileges so that you have the authority to perform CRUD operations on the database.
-2. Create a free account with [Healthchecks.io](https://healthchecks.io/projects/2cbc36e8-0a97-4fbb-b655-0016d22acf42/checks/).
-   Ask the current owner (John Fabrycky as of 3/31/26) to give you team access and if necessary 
-    <img width="591" height="846" alt="image" src="https://github.com/user-attachments/assets/50575de7-1281-4d6d-9f9d-5c657b35b6ea" />
+2. Create a free account
+   with [Healthchecks.io](https://healthchecks.io/projects/2cbc36e8-0a97-4fbb-b655-0016d22acf42/checks/).
+   Ask the current owner (John Fabrycky as of 3/31/26) to give you team access and if necessary
+   <img width="591" height="846" alt="image" src="https://github.com/user-attachments/assets/50575de7-1281-4d6d-9f9d-5c657b35b6ea" />
    transfer ownership to you.
 5. Create a free account with [Uptime Robot](https://dashboard.uptimerobot.com/monitors).
 6. Create a free account on [Render](https://dashboard.render.com/), go to the home page and select "New Web Service"
@@ -171,11 +176,12 @@ the Koin/Strat/Sutton google profiles (ask an RA of BHM if you need the email ad
 9. Use most of the default entries. For Start Command, replace the default with "python main.py".
 10. Use the free tier, under "For hobby projects".
 11. Under environment, you need to add three environment variables. They will be named DISCORD_TOKEN,
-   SUPABASE_SERVICE_KEY, HEALTHCHECK_URL, and SUPABASE_URL.
-   Under the environment tab, click edit on the "Environment Variables" Section. In the bottom left of the box,
-   click "+Add Variable". Where the placeholder text reads "NAME_OF_VARIABLE", put the variable name. Do this
-   for each of the variables named above. 
-    1. DISCORD_TOKEN - First option: find whoever is currently hosting the bot (John Fabrycky as of 3/31/26) and ask them to share the token with you.
+    SUPABASE_SERVICE_KEY, HEALTHCHECK_URL, and SUPABASE_URL.
+    Under the environment tab, click edit on the "Environment Variables" Section. In the bottom left of the box,
+    click "+Add Variable". Where the placeholder text reads "NAME_OF_VARIABLE", put the variable name. Do this
+    for each of the variables named above.
+    1. DISCORD_TOKEN - First option: find whoever is currently hosting the bot (John Fabrycky as of 3/31/26) and ask
+       them to share the token with you.
        Otherwise, go to the discord developer [portal](https://discord.com/developers/home). Select the Felipe bot, then
        select
        the Bot tab, then under Token, press Reset Token. ONLY do this if you are unable to contact the person who
@@ -183,14 +189,16 @@ the Koin/Strat/Sutton google profiles (ask an RA of BHM if you need the email ad
        has the Token because it will invalidate the current Token. Place the token in the box to the right of where
        you put the name "DISCORD_TOKEN" and save.
     2. HEALTHCHECK_URL - On the "Midnight Cleanup" Healthcheck in Healthchecks.io, under "How to Ping" on the main page,
-       click on the URL that begins with "https://" to copy it to your clipboard. Then enter that URL into Render associated
+       click on the URL that begins with "https://" to copy it to your clipboard. Then enter that URL into Render
+       associated
        with HEALTHCHECK_URL in the environment tab.
     4. SUPABASE_URL - Go to Supabase and select the "kss discord bot". Then go to Integrations -> DATA API -> API URL.
        Copy
        the API URL. Paste it in the appropriate box corresponding to "SUPABASE_URL" in the Render environment page.
     5. SUPABASE_SERVICE_KEY - On Supabase, go to Settings -> Configuration -> API Keys, then under "Secret Keys", find
        the
-       default key, press the "copy" icon to put it on your clipboard, then return to render environment and paste it into the appropriate box.
+       default key, press the "copy" icon to put it on your clipboard, then return to render environment and paste it
+       into the appropriate box.
 12. Select the Events tab, then find the "Manual Deploy" button, click it and select "Deploy latest commit".
 13. Go to Monitor -> Logs. It should build in under 5 minutes, with the success message "==> Your service is live 🎉",
     and no error messages.
