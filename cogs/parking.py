@@ -8,6 +8,7 @@ from discord import app_commands
 from discord.ext import commands, tasks
 from flask.cli import load_dotenv
 from supabase import create_client
+from dateutil.relativedelta import relativedelta, MO, TU, WE, TH, FR, SA, SU
 
 local_tz = pytz.timezone('America/Chicago')
 load_dotenv()
@@ -17,8 +18,20 @@ supabase = create_client(url, key)
 
 
 class Parking(commands.Cog):
-    DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-    day_choices = [app_commands.Choice(name=d.capitalize(), value=d) for d in DAYS]
+    # DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    WEEKDAYS = [
+        (MO, "Monday"),
+        (TU, "Tuesday"),
+        (WE, "Wednesday"),
+        (TH, "Thursday"),
+        (FR, "Friday"),
+        (SA, "Saturday"),
+        (SU, "Sunday")
+    ]
+    day_choices = [
+        app_commands.Choice(name=full_name, value=day_obj.weekday)
+        for day_obj, full_name in WEEKDAYS
+    ]
     time_choices = [app_commands.Choice(name=f"{i % 12 or 12} {'AM' if i < 12 else 'PM'}",
                                         value=f"{i % 12 or 12} {'AM' if i < 12 else 'PM'}") for i in range(24)]
 
@@ -28,36 +41,36 @@ class Parking(commands.Cog):
         self.total_staff_spots = 2
 
     # --- INTERNAL UTILITIES ---
-    def _parse_range(self, s_day, s_time, e_day, e_time):
+    def _parse_range(self, s_day_int, s_time_str, e_day_int, e_time_str):
         now = datetime.now(local_tz).replace(minute=0, second=0, microsecond=0)
 
-        def to_dt(d_str, t_str, reference_date):
-            target_day = self.DAYS.index(d_str.lower())
-            # Calculate days ahead relative to the reference_date provided
-            days_ahead = (target_day - reference_date.weekday() + 7) % 7
-            t_obj = datetime.strptime(t_str.strip().upper(), "%I %p").time()
+        def to_dt(day_val, time_str, reference_date):
+            # Parse the time string (e.g., "10 AM") into a time object
+            t_obj = datetime.strptime(time_str.strip().upper(), "%I %p").time()
 
-            dt = (reference_date + timedelta(days=days_ahead)).replace(hour=t_obj.hour)
+            # Use the integer day_val directly with dateutil's weekday
+            dt = reference_date + relativedelta(
+                weekday=day_val,
+                hour=t_obj.hour,
+                minute=0, second=0, microsecond=0
+            )
 
-            # If the day is 'today' relative to the reference but the hour passed, push forward
-            if days_ahead == 0 and dt < reference_date:
-                dt += timedelta(days=7)
+            # If the calculated time is in the past relative to reference, push it 1 week forward
+            if dt <= reference_date:
+                dt += relativedelta(weeks=1)
             return dt
 
-        # 1. Calculate start relative to NOW
-        start = to_dt(s_day, s_time, now)
+        # 1. Calculate start relative to NOW using the actual user input
+        start = to_dt(s_day_int, s_time_str, now)
 
         # 2. Calculate end relative to the START time
-        # This ensures the end is always the FIRST occurrence of that day/time AFTER the start.
-        end = to_dt(e_day, e_time, start)
+        end = to_dt(e_day_int, e_time_str, start)
 
-        # 3. Final safety check: if start and end are identical (e.g., Mon 10am to Mon 10am)
-        # assume they mean exactly one week later.
+        # 3. Safety check for identical start/end
         if end == start:
-            end += timedelta(days=7)
+            end += relativedelta(weeks=1)
 
-        duration = end - start
-        return start, end, duration
+        return start, end, end - start
 
     def _is_blackout(self, start, end):
         """Checks if range hits: Mon-Fri < 5PM or Sun 2AM-2PM."""
@@ -157,8 +170,8 @@ class Parking(commands.Cog):
     @app_commands.command(name="offer_spot", description="List your spot as available")
     @app_commands.choices(start_day=day_choices, end_day=day_choices, start_time=time_choices, end_time=time_choices)
     async def offer_spot(self, interaction: discord.Interaction, spot: int,
-                         start_day: app_commands.Choice[str], start_time: app_commands.Choice[str],
-                         end_day: app_commands.Choice[str], end_time: app_commands.Choice[str],
+                         start_day: app_commands.Choice[int], start_time: app_commands.Choice[str],
+                         end_day: app_commands.Choice[int], end_time: app_commands.Choice[str],
                          weeks: int = 1):
         if spot not in self.valid_spots:
             return await interaction.response.send_message(f"❌ Spot {spot} is invalid.", ephemeral=True)
@@ -215,8 +228,11 @@ class Parking(commands.Cog):
     @app_commands.command(name="claim_spot", description="Reserve a resident or guest spot")
     @app_commands.choices(start_day=day_choices, end_day=day_choices, start_time=time_choices, end_time=time_choices)
     async def claim_spot(self, interaction: discord.Interaction, spot: int,
-                         start_day: str, start_time: str, end_day: str, end_time: str):
-        c_start, c_end, duration = self._parse_range(start_day, start_time, end_day, end_time)
+                         start_day: app_commands.Choice[int], start_time: app_commands.Choice[str],
+                         end_day: app_commands.Choice[int], end_time: app_commands.Choice[str]):
+        c_start, c_end, duration = self._parse_range(
+            start_day.value, start_time.value, end_day.value, end_time.value
+        )
 
         # --- IMMEDIATE VALIDATION ---
         if duration < timedelta(hours=2):
@@ -282,8 +298,8 @@ class Parking(commands.Cog):
     @app_commands.command(name="claim_staff", description="Reserve a staff spot")
     @app_commands.choices(start_day=day_choices, end_day=day_choices, start_time=time_choices, end_time=time_choices)
     async def claim_staff(self, interaction: discord.Interaction,
-                          start_day: app_commands.Choice[str], start_time: app_commands.Choice[str],
-                          end_day: app_commands.Choice[str], end_time: app_commands.Choice[str]):
+                          start_day: app_commands.Choice[int], start_time: app_commands.Choice[str],
+                          end_day: app_commands.Choice[int], end_time: app_commands.Choice[str]):
 
         c_start, c_end, duration = self._parse_range(start_day.value, start_time.value, end_day.value, end_time.value)
 
