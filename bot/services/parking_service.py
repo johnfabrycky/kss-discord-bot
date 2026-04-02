@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from supabase import create_client
 
-from helpers.constants import LOCAL_TZ, STAFF_SPOTS, GUEST_SPOTS, VALID_SPOTS
+from bot.utils.constants import LOCAL_TZ, STAFF_SPOTS, GUEST_SPOTS, VALID_SPOTS
 
 
 class ParkingService:

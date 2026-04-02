@@ -1,5 +1,6 @@
 import csv
 import os
+from pathlib import Path
 
 from flask.cli import load_dotenv
 from supabase import create_client
@@ -9,6 +10,7 @@ load_dotenv()
 url = os.environ.get("SUPABASE_URL")
 key = os.environ.get("SUPABASE_SERVICE_KEY")
 supabase = create_client(url, key)
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # This class acts as your "Schema Object"
@@ -71,4 +73,4 @@ def transform_meals(csv_reader):
 
 # Create the "Object" for the meals table
 meals_schema = TableSchema("meals", transform_meals)
-upload_from_csv("meal_menu.csv", meals_schema)
+upload_from_csv(BASE_DIR / "meal_menu.csv", meals_schema)
