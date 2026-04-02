@@ -1,8 +1,10 @@
 import os
 from datetime import datetime, timedelta
+
 from dateutil.relativedelta import relativedelta
 from supabase import create_client
-from constants import LOCAL_TZ, STAFF_SPOTS, GUEST_SPOTS
+
+from constants import LOCAL_TZ, STAFF_SPOTS, GUEST_SPOTS, VALID_SPOTS
 
 
 class ParkingService:
@@ -28,6 +30,34 @@ class ParkingService:
         if end == start:
             end += relativedelta(weeks=1)
         return start, end, end - start
+
+    async def initialize_spots(self):
+        """Synchronizes the database table with your constants.py config."""
+
+        all_configs = []
+        # Process Resident & Guest Spots
+        for s in VALID_SPOTS:
+            all_configs.append({
+                "spot_number": s,
+                "spot_type": "resident",
+                "is_guest": (s in GUEST_SPOTS)
+            })
+
+        # Process Staff Spots
+        for s in STAFF_SPOTS:
+            all_configs.append({
+                "spot_number": s,
+                "spot_type": "staff",
+                "is_guest": False
+            })
+
+        try:
+            # Upsert ensures we update existing spots or add new ones without duplicates
+            self.supabase.table("parking_spots").upsert(
+                all_configs, on_conflict="spot_number"
+            ).execute()
+        except Exception as e:
+            print(f"⚠️ Service Error initializing spots: {e}")
 
     def is_blackout(self, start, end):
         curr = start
