@@ -1,3 +1,4 @@
+from collections import Counter
 from datetime import datetime, timedelta
 
 import discord
@@ -6,8 +7,6 @@ from discord.ext import commands
 
 from helpers.constants import WEEKDAYS, VALID_SPOTS, LOCAL_TZ, STAFF_SPOTS
 from helpers.parking_service import ParkingService
-
-from collections import Counter
 
 
 class Parking(commands.Cog):
@@ -316,7 +315,6 @@ class Parking(commands.Cog):
 
         embed.set_footer(text="All times are in America/Chicago (CST/CDT)")
         await interaction.response.send_message(embed=embed, ephemeral=True)
-
 
 
 async def setup(bot):
