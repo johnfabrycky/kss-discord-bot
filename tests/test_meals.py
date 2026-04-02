@@ -66,4 +66,3 @@ class MealsCogTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(embed.title, "🍴 Menu for Monday")
         self.assertEqual(embed.fields[0].value, "Tacos")
         self.assertEqual(embed.fields[1].value, "Pasta")
-

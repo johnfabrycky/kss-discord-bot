@@ -64,4 +64,3 @@ class FeedbackCogTests(unittest.IsolatedAsyncioTestCase):
         interaction.response.send_modal.assert_awaited_once()
         modal = interaction.response.send_modal.await_args.args[0]
         self.assertIsInstance(modal, FeedbackModal)
-
