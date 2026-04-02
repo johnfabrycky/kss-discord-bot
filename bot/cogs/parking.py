@@ -5,8 +5,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from helpers.constants import WEEKDAYS, VALID_SPOTS, LOCAL_TZ, STAFF_SPOTS
-from helpers.parking_service import ParkingService
+from bot.services.parking_service import ParkingService
+from bot.utils.constants import WEEKDAYS, VALID_SPOTS, LOCAL_TZ, STAFF_SPOTS
 
 
 class Parking(commands.Cog):

@@ -3,7 +3,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from cogs.feedback import Feedback, FeedbackModal
+from bot.cogs.feedback import Feedback, FeedbackModal
 
 
 def make_interaction(user_id=1234, display_name="Tester"):
@@ -53,7 +53,7 @@ class FeedbackCogTests(unittest.IsolatedAsyncioTestCase):
         {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_SERVICE_KEY": "test-key"},
         clear=False,
     )
-    @patch("cogs.feedback.create_client")
+    @patch("bot.cogs.feedback.create_client")
     async def test_feedback_command_opens_modal(self, create_client_mock):
         create_client_mock.return_value = MagicMock()
         cog = Feedback(bot=object())

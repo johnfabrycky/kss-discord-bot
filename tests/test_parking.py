@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 
-from cogs import parking as parking_module
+from bot.cogs import parking as parking_module
 
 
 def make_interaction(user_id=1234):
@@ -24,7 +24,7 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
     """Unit tests for the active parking cog commands."""
 
     def setUp(self):
-        service_patcher = patch("cogs.parking.ParkingService")
+        service_patcher = patch("bot.cogs.parking.ParkingService")
         self.addCleanup(service_patcher.stop)
         self.service_cls = service_patcher.start()
         self.service = MagicMock()

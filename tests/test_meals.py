@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import discord
 
-from cogs import meals as meals_module
+from bot.cogs import meals as meals_module
 
 
 def make_interaction():
@@ -39,7 +39,7 @@ class MealsCogTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(self.cog.is_uiuc_break(current_date), "Spring Break 🌸")
 
-    @patch("cogs.meals.datetime")
+    @patch("bot.cogs.meals.datetime")
     async def test_today_returns_break_message_during_break(self, datetime_mock):
         datetime_mock.now.return_value = datetime(2026, 3, 16, 12, 0, tzinfo=meals_module.local_tz)
         datetime_mock.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
@@ -52,7 +52,7 @@ class MealsCogTests(unittest.IsolatedAsyncioTestCase):
             ephemeral=True,
         )
 
-    @patch("cogs.meals.datetime")
+    @patch("bot.cogs.meals.datetime")
     async def test_today_builds_embed_from_cached_meals(self, datetime_mock):
         datetime_mock.now.return_value = datetime(2026, 2, 2, 12, 0, tzinfo=meals_module.local_tz)
         datetime_mock.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)

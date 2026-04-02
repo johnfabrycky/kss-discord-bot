@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 os.environ.setdefault("SUPABASE_URL", "https://example.supabase.co")
 os.environ.setdefault("SUPABASE_SERVICE_KEY", "test-key")
 
-from cogs import lates as lates_module
+from bot.cogs import lates as lates_module
 
 
 def make_query(result):
