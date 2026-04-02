@@ -197,14 +197,6 @@ class Parking(commands.Cog):
                     "end_time": end.isoformat()
                 })
 
-            # 1. Prepare data for Supabase
-            offer_data = {
-                "spot_number": spot,
-                "owner_id": user_id,
-                "start_time": start.isoformat(),
-                "end_time": end.isoformat()
-            }
-
         if not all_offers:
             return await interaction.response.send_message(f"❌ Spot {spot} is already offered during those times.",
                                                            ephemeral=True)
@@ -346,6 +338,75 @@ class Parking(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(f"❌ Database error: {e}", ephemeral=True)
 
+    def get_spot_availability(self, now, one_week_later, raw_offers, spot_claims, is_guest=False):
+        """
+        Consolidates offers, subtracts claims, and returns (header_string, blocks_list).
+        """
+        # 1. Merge Overlapping/Adjacent Offer Windows
+        if is_guest:
+            # Guests are offered 24/7 for the next 7 days
+            merged_windows = [{"start": now.replace(hour=0), "end": one_week_later}]
+        else:
+            raw_sorted = sorted(raw_offers, key=lambda x: x['start'])
+            if not raw_sorted:
+                merged_windows = []
+            else:
+                merged_windows = []
+                curr = raw_sorted[0].copy()
+                for next_w in raw_sorted[1:]:
+                    if next_w['start'] <= curr['end']:
+                        curr['end'] = max(curr['end'], next_w['end'])
+                    else:
+                        merged_windows.append(curr)
+                        curr = next_w.copy()
+                merged_windows.append(curr)
+
+        # 2. Calculate Available Blocks (Gaps in claims within offered windows)
+        blocks = []
+        for w in merged_windows:
+            w_start = max(w["start"], now)
+            w_end = min(w["end"], one_week_later)
+            if w_start >= w_end:
+                continue
+
+            ptr = w_start
+            # Filter claims relevant to this specific window
+            relevant_claims = [c for c in spot_claims if not (c['end'] <= w_start or c['start'] >= w_end)]
+
+            for c in sorted(relevant_claims, key=lambda x: x['start']):
+                c_start = max(c['start'], w_start)
+                if (c_start - ptr) >= timedelta(hours=2):
+                    blocks.append((ptr, c_start))
+                ptr = max(ptr, c['end'])
+
+            if (w_end - ptr) >= timedelta(hours=2):
+                blocks.append((ptr, w_end))
+
+        # 3. Determine Header Status
+        is_offered_now = any(w["start"] <= now < w["end"] for w in merged_windows)
+        current_claim = next((c for c in spot_claims if c["start"] <= now < c["end"]), None)
+
+        if current_claim:
+            header = f"🔴 Busy until {current_claim['end'].strftime('%a %I%p')}"
+        elif not is_offered_now:
+            upcoming_off = next((w for w in merged_windows if w["start"] > now), None)
+            header = f"🕒 Unavailable (Next: {upcoming_off['start'].strftime('%a %I%p')})" if upcoming_off else "❌ Not Offered"
+        else:
+            # Find when the current availability actually ends
+            current_win = next((w for w in merged_windows if w["start"] <= now < w["end"]), None)
+            if not current_win:
+                limit_time = one_week_later
+            else:
+                limit_time = current_win["end"]
+            upcoming_claim = next((c for c in spot_claims if c["start"] > now), None)
+
+            if upcoming_claim and upcoming_claim['start'] < limit_time:
+                limit_time = upcoming_claim['start']
+
+            header = f"🟢 Available Now (until {limit_time.strftime('%a %I%p')})"
+
+        return header, blocks
+
     @app_commands.command(name="parking_status", description="View available parking spots")
     async def parking_status(self, interaction: discord.Interaction):
         now = datetime.now(local_tz).replace(minute=0, second=0, microsecond=0)
@@ -394,49 +455,19 @@ class Parking(commands.Cog):
         all_spots = sorted(set(list(offers_db.keys()) + guest_spot_list))
 
         for s in all_spots:
-            if s in guest_spot_list:
-                windows = [{"start": now.replace(hour=0), "end": one_week_later}]
-            else:
-                # Sort and filter offers to ensure they don't exceed the 1-week window
-                windows = sorted(offers_db[s], key=lambda x: x['start'])
-
+            # Extract data for this specific spot
+            raw_offers = offers_db.get(s, [])
             spot_claims = sorted(claims_db.get(s, []), key=lambda x: x['start'])
-            blocks = []
+            is_guest = s in guest_spot_list
 
-            for w in windows:
-                # Clamp window to exactly 7 days from now
-                w_start = max(w["start"], now)
-                w_end = min(w["end"], one_week_later)
+            # Use helper
+            header, blocks = self.get_spot_availability(now, one_week_later, raw_offers, spot_claims, is_guest)
 
-                if w_start >= w_end:
-                    continue
-
-                ptr = w_start
-                relevant_claims = [c for c in spot_claims if not (c['end'] <= w_start or c['start'] >= w_end)]
-
-                for c in relevant_claims:
-                    c_start = max(c['start'], w_start)
-                    if (c_start - ptr) >= timedelta(hours=2):
-                        blocks.append((ptr, c_start))
-                    ptr = max(ptr, c['end'])
-
-                if (w_end - ptr) >= timedelta(hours=2):
-                    blocks.append((ptr, w_end))
-
-            # Status Formatting
-            current_claim = next((c for c in spot_claims if c["start"] <= now < c["end"]), None)
-            # header = f"🔴 Busy until {current_claim['end'].strftime('%a %I%p')}" if current_claim else "🟢 Available Now"
-            if current_claim:
-                header = f"🔴 Busy until {current_claim['end'].strftime('%a %I%p')}"
-            else:
-                # Find the next upcoming claim
-                upcoming = next((c for c in spot_claims if c["start"] > now), None)
-                next_up = f" (until {upcoming['start'].strftime('%a %I%p')})" if upcoming else ""
-                header = f"🟢 Available Now{next_up}"
-
-            detail = " | ".join(
-                [f"{'🟢' if b[0] <= now < b[1] else '📅'} {b[0].strftime('%a %I%p')}-{b[1].strftime('%a %I%p')}"
-                 for b in blocks])
+            # Format details
+            detail = " | ".join([
+                f"{'🟢' if b[0] <= now < b[1] else '📅'} {b[0].strftime('%a %I%p')}-{b[1].strftime('%a %I%p')}"
+                for b in blocks
+            ])
 
             lines.append(f"**Spot {s}**: {header}\n└ *Free:* {detail or '❌ Fully Booked'}")
 
