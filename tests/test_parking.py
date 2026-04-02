@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import discord
 
 from bot.cogs import parking as parking_module
+from bot.services.parking_service import ParkingService
 
 
 def make_interaction(user_id=1234):
@@ -199,3 +200,76 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         embed = interaction.response.send_message.await_args.kwargs["embed"]
         self.assertEqual(embed.title, "🚗 Parking System Guide")
         self.assertIn("Guest Spot(s): 46", embed.fields[1].value)
+
+
+class ParkingServiceTests(unittest.TestCase):
+    """Unit tests for parking service time parsing."""
+
+    @patch("bot.services.parking_service.create_client")
+    @patch("bot.services.parking_service.datetime")
+    def test_parse_range_treats_current_hour_as_this_week(
+            self,
+            datetime_mock,
+            create_client_mock,
+    ):
+        create_client_mock.return_value = MagicMock()
+        real_datetime = datetime
+        current_time = real_datetime(2026, 4, 2, 16, 21, tzinfo=parking_module.LOCAL_TZ)
+        datetime_mock.now.return_value = current_time
+        datetime_mock.strptime.side_effect = lambda *args, **kwargs: real_datetime.strptime(*args, **kwargs)
+
+        service = ParkingService()
+
+        this_week_start, this_week_end, _ = service.parse_range(3, "4 PM", 6, "12 PM")
+        next_week_start, next_week_end, _ = service.parse_range(3, "3 PM", 6, "12 PM")
+
+        self.assertEqual(this_week_start, real_datetime(2026, 4, 2, 16, 0, tzinfo=parking_module.LOCAL_TZ))
+        self.assertEqual(this_week_end, real_datetime(2026, 4, 5, 12, 0, tzinfo=parking_module.LOCAL_TZ))
+
+    @patch("bot.services.parking_service.create_client")
+    @patch("bot.services.parking_service.datetime")
+    def test_parse_range_treats_earlier_hour_as_next_week(
+            self,
+            datetime_mock,
+            create_client_mock,
+    ):
+        create_client_mock.return_value = MagicMock()
+        real_datetime = datetime
+        current_time = real_datetime(2026, 4, 2, 16, 21, tzinfo=parking_module.LOCAL_TZ)
+        datetime_mock.now.return_value = current_time
+        datetime_mock.strptime.side_effect = lambda *args, **kwargs: real_datetime.strptime(*args, **kwargs)
+
+        service = ParkingService()
+
+        this_week_start, this_week_end, _ = service.parse_range(3, "4 PM", 6, "12 PM")
+        next_week_start, next_week_end, _ = service.parse_range(3, "3 PM", 6, "12 PM")
+
+        self.assertEqual(next_week_start, real_datetime(2026, 4, 9, 15, 0, tzinfo=parking_module.LOCAL_TZ))
+        self.assertEqual(next_week_end, real_datetime(2026, 4, 12, 12, 0, tzinfo=parking_module.LOCAL_TZ))
+
+    @patch("bot.services.parking_service.create_client")
+    def test_create_offers_returns_two_line_resolved_date_confirmation(self, create_client_mock):
+        create_client_mock.return_value = MagicMock()
+        service = ParkingService()
+        service.supabase = MagicMock()
+        table = MagicMock()
+        service.supabase.table.return_value = table
+        table.select.return_value = table
+        table.eq.return_value = table
+        table.lt.return_value = table
+        table.gt.return_value = table
+        table.insert.return_value = table
+        table.execute.side_effect = [SimpleNamespace(data=[]), SimpleNamespace(data=[{"id": 1}])]
+
+        start = datetime(2026, 4, 2, 16, 0, tzinfo=parking_module.LOCAL_TZ)
+        end = datetime(2026, 4, 5, 12, 0, tzinfo=parking_module.LOCAL_TZ)
+
+        import asyncio
+
+        success, message = asyncio.run(service.create_offers(1234, 27, start, end, 1))
+
+        self.assertTrue(success)
+        self.assertEqual(
+            message,
+            "📢 **Spot 27** listed\nStart: Thu Apr 2 at 4:00 PM\nEnd: Sun Apr 5 at 12:00 PM",
+        )
