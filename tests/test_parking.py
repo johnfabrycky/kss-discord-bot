@@ -24,6 +24,16 @@ def make_interaction(user_id=1234):
     )
 
 
+def make_query(result):
+    """Create a fluent Supabase query mock returning the supplied data."""
+    query = MagicMock()
+    query.select.return_value = query
+    query.eq.return_value = query
+    query.gt.return_value = query
+    query.execute.return_value = SimpleNamespace(data=result)
+    return query
+
+
 class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
     """Unit tests for the active parking cog commands."""
 
@@ -96,14 +106,48 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         await parking_module.Parking.claim_spot.callback(
             self.cog,
             interaction,
-            10,
             SimpleNamespace(value=0),
             SimpleNamespace(value="1 PM"),
             SimpleNamespace(value=0),
             SimpleNamespace(value="2 PM"),
+            10,
         )
 
         interaction.response.send_message.assert_awaited_once_with("❌ Must be between 2h and 7d.", ephemeral=True)
+
+    async def test_claim_spot_autocomplete_filters_to_window_compatible_spots(self):
+        start = datetime.fromisoformat("2026-04-02T16:00:00-05:00")
+        end = datetime.fromisoformat("2026-04-05T12:00:00-05:00")
+        self.service.parse_range.return_value = (start, end, timedelta(days=2, hours=20))
+        guest_query = make_query([{"spot_number": 46}])
+        offer_query = make_query(
+            [
+                {
+                    "spot_number": 27,
+                    "start_time": "2026-04-02T16:00:00-05:00",
+                    "end_time": "2026-04-05T12:00:00-05:00",
+                },
+                {
+                    "spot_number": 31,
+                    "start_time": "2026-04-02T18:00:00-05:00",
+                    "end_time": "2026-04-05T12:00:00-05:00",
+                },
+            ]
+        )
+        self.service.supabase = MagicMock()
+        self.service.supabase.table.side_effect = [guest_query, offer_query]
+        interaction = make_interaction()
+        interaction.namespace = SimpleNamespace(
+            start_day=SimpleNamespace(value=3),
+            start_time=SimpleNamespace(value="4 PM"),
+            end_day=SimpleNamespace(value=6),
+            end_time=SimpleNamespace(value="12 PM"),
+        )
+
+        choices = await self.cog.claim_spot_autocomplete(interaction, "")
+
+        self.assertEqual([choice.value for choice in choices], [27, 46])
+        self.assertEqual([choice.name for choice in choices], ["Spot 27 (Offered)", "Spot 46 (Guest)"])
 
     async def test_my_parking_formats_offers_and_claims(self):
         interaction = make_interaction()
