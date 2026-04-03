@@ -44,18 +44,20 @@ class LatesCogTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         patcher = patch("discord.ext.tasks.Loop.start")
         self.addCleanup(patcher.stop)
-        self.cleanup_start = patcher.start()
+        patcher.start()
         self.supabase = MagicMock()
         self.supabase.table.return_value = make_query([])
         self.supabase.table.side_effect = lambda _: make_query([])
         self.supabase_patch = patch.object(lates_module, "supabase", self.supabase)
         self.supabase_patch.start()
         self.addCleanup(self.supabase_patch.stop)
+        self.run_patch = patch("bot.cogs.lates.run_supabase", new=AsyncMock(side_effect=lambda query, timeout=10: query.execute()))
+        self.mock_run = self.run_patch.start()
+        self.addCleanup(self.run_patch.stop)
         self.cog = lates_module.Lates(bot=object())
 
     def test_get_user_house_returns_expected_house(self):
         member = SimpleNamespace(roles=[SimpleNamespace(name="Koinonian"), SimpleNamespace(name="Resident")])
-
         self.assertEqual(self.cog._get_user_house(member), "koinonian")
 
     async def test_view_lates_rejects_user_without_house_role(self):

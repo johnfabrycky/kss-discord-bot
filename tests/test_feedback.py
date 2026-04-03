@@ -12,9 +12,11 @@ def make_interaction(user_id=1234, display_name="Tester"):
     return SimpleNamespace(
         user=user,
         response=SimpleNamespace(
+            defer=AsyncMock(),
             send_message=AsyncMock(),
             send_modal=AsyncMock(),
         ),
+        followup=SimpleNamespace(send=AsyncMock()),
     )
 
 
@@ -42,7 +44,8 @@ class FeedbackModalTests(unittest.IsolatedAsyncioTestCase):
                 "content": "Please add more parking commands.",
             }
         )
-        interaction.response.send_message.assert_awaited_once()
+        interaction.response.defer.assert_awaited_once_with(ephemeral=True)
+        interaction.followup.send.assert_awaited_once()
 
 
 class FeedbackCogTests(unittest.IsolatedAsyncioTestCase):

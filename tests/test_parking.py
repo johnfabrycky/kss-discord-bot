@@ -40,6 +40,7 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         self.service.get_parking_data = AsyncMock()
         self.service.cancel_action = AsyncMock()
         self.service.get_guest_spot_list = AsyncMock()
+        self.service.get_cancel_autocomplete_data = AsyncMock(return_value=([], []))
         self.service.parse_range = MagicMock()
         self.service.get_merged_availability = MagicMock()
         self.service_cls.return_value = self.service
@@ -47,7 +48,6 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_initialize_parking_spots_delegates_to_service(self):
         await self.cog.initialize_parking_spots()
-
         self.service.initialize_spots.assert_awaited_once()
 
     async def test_offer_spot_rejects_invalid_spot(self):
@@ -84,8 +84,9 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
             2,
         )
 
+        interaction.response.defer.assert_awaited_once_with(ephemeral=True)
         self.service.create_offers.assert_awaited_once_with(1234, 10, start, end, 2)
-        interaction.response.send_message.assert_awaited_once_with("created", ephemeral=False)
+        interaction.followup.send.assert_awaited_once_with("created", ephemeral=False)
 
     async def test_claim_spot_rejects_duration_outside_limits(self):
         interaction = make_interaction()
@@ -126,8 +127,9 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
 
         await parking_module.Parking.my_parking.callback(self.cog, interaction)
 
-        interaction.response.send_message.assert_awaited_once()
-        embed = interaction.response.send_message.await_args.kwargs["embed"]
+        interaction.response.defer.assert_awaited_once_with(ephemeral=True)
+        interaction.followup.send.assert_awaited_once()
+        embed = interaction.followup.send.await_args.kwargs["embed"]
         self.assertEqual(embed.title, "📋 My Parking Activity")
         self.assertIn("Spot 10", embed.fields[0].value)
         self.assertIn("Staff Spot", embed.fields[1].value)
@@ -166,8 +168,9 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
 
         await parking_module.Parking.parking_status.callback(self.cog, interaction)
 
-        interaction.response.send_message.assert_awaited_once()
-        embed = interaction.response.send_message.await_args.kwargs["embed"]
+        interaction.response.defer.assert_awaited_once_with(ephemeral=True)
+        interaction.followup.send.assert_awaited_once()
+        embed = interaction.followup.send.await_args.kwargs["embed"]
         self.assertIsInstance(embed, discord.Embed)
         self.assertEqual(embed.title, "🚗 Parking Status (Next 7 Days)")
         self.assertIn("Spot 10", embed.fields[0].value)
@@ -194,14 +197,42 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         interaction.channel.send.assert_awaited_once_with("⚠️ **Attention <@1>, <@2>**: withdrawn")
         interaction.followup.send.assert_awaited_once_with("withdrawn", ephemeral=True)
 
+    async def test_cancel_spot_autocomplete_formats_results(self):
+        self.service.get_cancel_autocomplete_data.return_value = (
+            [
+                {
+                    "id": "offer-1",
+                    "spot_number": 27,
+                    "start_time": "2026-04-02T16:00:00-05:00",
+                    "end_time": "2026-04-05T12:00:00-05:00",
+                }
+            ],
+            [
+                {
+                    "id": "claim-1",
+                    "spot_number": 998,
+                    "start_time": "2026-04-03T10:00:00-05:00",
+                    "end_time": "2026-04-03T12:00:00-05:00",
+                }
+            ],
+        )
+        interaction = make_interaction()
+
+        choices = await self.cog.cancel_spot_autocomplete(interaction, "")
+
+        self.assertEqual(len(choices), 2)
+        self.assertEqual(choices[0].value, "sig_offer_offer-1")
+        self.assertEqual(choices[1].value, "sig_claim_claim-1")
+
     async def test_parking_help_sends_guide_embed(self):
         interaction = make_interaction()
         self.service.get_guest_spot_list.return_value = "46"
 
         await parking_module.Parking.parking_help.callback(self.cog, interaction)
 
-        interaction.response.send_message.assert_awaited_once()
-        embed = interaction.response.send_message.await_args.kwargs["embed"]
+        interaction.response.defer.assert_awaited_once_with(ephemeral=True)
+        interaction.followup.send.assert_awaited_once()
+        embed = interaction.followup.send.await_args.kwargs["embed"]
         self.assertEqual(embed.title, "🚗 Parking System Guide")
         self.assertIn("Guest Spot(s): 46", embed.fields[1].value)
 
@@ -211,11 +242,7 @@ class ParkingServiceTests(unittest.TestCase):
 
     @patch("bot.services.parking_service.create_client")
     @patch("bot.services.parking_service.datetime")
-    def test_parse_range_treats_current_hour_as_this_week(
-        self,
-        datetime_mock,
-        create_client_mock,
-    ):
+    def test_parse_range_treats_current_hour_as_this_week(self, datetime_mock, create_client_mock):
         create_client_mock.return_value = MagicMock()
         real_datetime = datetime
         current_time = real_datetime(2026, 4, 2, 16, 21, tzinfo=parking_module.LOCAL_TZ)
@@ -223,7 +250,6 @@ class ParkingServiceTests(unittest.TestCase):
         datetime_mock.strptime.side_effect = lambda *args, **kwargs: real_datetime.strptime(*args, **kwargs)
 
         service = ParkingService()
-
         this_week_start, this_week_end, _ = service.parse_range(3, "4 PM", 6, "12 PM")
 
         self.assertEqual(this_week_start, real_datetime(2026, 4, 2, 16, 0, tzinfo=parking_module.LOCAL_TZ))
@@ -231,11 +257,7 @@ class ParkingServiceTests(unittest.TestCase):
 
     @patch("bot.services.parking_service.create_client")
     @patch("bot.services.parking_service.datetime")
-    def test_parse_range_treats_earlier_hour_as_next_week(
-        self,
-        datetime_mock,
-        create_client_mock,
-    ):
+    def test_parse_range_treats_earlier_hour_as_next_week(self, datetime_mock, create_client_mock):
         create_client_mock.return_value = MagicMock()
         real_datetime = datetime
         current_time = real_datetime(2026, 4, 2, 16, 21, tzinfo=parking_module.LOCAL_TZ)
@@ -243,7 +265,6 @@ class ParkingServiceTests(unittest.TestCase):
         datetime_mock.strptime.side_effect = lambda *args, **kwargs: real_datetime.strptime(*args, **kwargs)
 
         service = ParkingService()
-
         next_week_start, next_week_end, _ = service.parse_range(3, "3 PM", 6, "12 PM")
 
         self.assertEqual(next_week_start, real_datetime(2026, 4, 9, 15, 0, tzinfo=parking_module.LOCAL_TZ))
@@ -312,10 +333,6 @@ class ParkingServiceTests(unittest.TestCase):
                 self.filters.append((field, ("gt", value)))
                 return self
 
-            def in_(self, field, values):
-                self.in_filters.append((field, set(values)))
-                return self
-
             def execute(self):
                 rows = list(self.store[self.name])
                 for field, value in self.filters:
@@ -323,8 +340,6 @@ class ParkingServiceTests(unittest.TestCase):
                         rows = [row for row in rows if row[field] > value[1]]
                     else:
                         rows = [row for row in rows if row[field] == value]
-                for field, values in self.in_filters:
-                    rows = [row for row in rows if row[field] in values]
 
                 if self.mode == "delete":
                     ids_to_remove = {row["id"] for row in rows}

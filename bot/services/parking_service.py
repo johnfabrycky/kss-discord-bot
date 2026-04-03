@@ -1,3 +1,5 @@
+import asyncio
+import logging
 import os
 from datetime import datetime, timedelta
 
@@ -5,6 +7,8 @@ from dateutil.relativedelta import relativedelta
 from supabase import create_client
 
 from bot.utils.constants import GUEST_SPOTS, LOCAL_TZ, STAFF_SPOTS, VALID_SPOTS
+
+logger = logging.getLogger(__name__)
 
 
 class ParkingService:
@@ -15,6 +19,17 @@ class ParkingService:
         url = os.environ.get("SUPABASE_URL")
         key = os.environ.get("SUPABASE_SERVICE_KEY")
         self.supabase = create_client(url, key)
+
+    async def _run_blocking(self, func, *args, timeout=15, log_context=None):
+        """Run a blocking Supabase operation off the event loop with timeout/logging."""
+        try:
+            return await asyncio.wait_for(asyncio.to_thread(func, *args), timeout=timeout)
+        except asyncio.TimeoutError:
+            logger.exception("Parking service operation timed out", extra=log_context or {})
+            raise
+        except Exception:
+            logger.exception("Parking service operation failed", extra=log_context or {})
+            raise
 
     def parse_range(self, s_day_int, s_time_str, e_day_int, e_time_str):
         """Convert weekday and hour choices into the next matching start/end datetimes."""
@@ -54,31 +69,34 @@ class ParkingService:
         am_pm = "AM" if value.hour < 12 else "PM"
         return f"{value.strftime('%a %b')} {value.day} at {hour}:{value.strftime('%M')} {am_pm}"
 
-    async def initialize_spots(self):
-        """Synchronize the database parking spot table with the configured constants."""
+    def _initialize_spots_sync(self):
         all_configs = []
-        for s in VALID_SPOTS:
+        for spot in VALID_SPOTS:
             all_configs.append(
                 {
-                    "spot_number": s,
+                    "spot_number": spot,
                     "spot_type": "resident",
-                    "is_guest": s in GUEST_SPOTS,
+                    "is_guest": spot in GUEST_SPOTS,
                 }
             )
 
-        for s in STAFF_SPOTS:
+        for spot in STAFF_SPOTS:
             all_configs.append(
                 {
-                    "spot_number": s,
+                    "spot_number": spot,
                     "spot_type": "staff",
                     "is_guest": False,
                 }
             )
 
+        self.supabase.table("parking_spots").upsert(all_configs, on_conflict="spot_number").execute()
+
+    async def initialize_spots(self):
+        """Synchronize the database parking spot table with the configured constants."""
         try:
-            self.supabase.table("parking_spots").upsert(all_configs, on_conflict="spot_number").execute()
-        except Exception as e:
-            print(f"⚠️ Service Error initializing spots: {e}")
+            await self._run_blocking(self._initialize_spots_sync, timeout=20, log_context={"operation": "initialize_spots"})
+        except Exception:
+            logger.exception("Parking spot initialization failed")
 
     def is_blackout(self, start, end):
         """Return whether any hour in the requested window falls inside staff blackout time."""
@@ -90,8 +108,7 @@ class ParkingService:
             curr += timedelta(hours=1)
         return False
 
-    async def get_parking_data(self, now, cutoff):
-        """Fetch all raw parking data needed to build the status view."""
+    def _get_parking_data_sync(self, now, cutoff):
         offers = (
             self.supabase.table("parking_offers")
             .select("*")
@@ -107,10 +124,18 @@ class ParkingService:
             .execute()
         )
         guests = self.supabase.table("parking_spots").select("spot_number").eq("is_guest", True).execute()
-        return offers.data, claims.data, [r["spot_number"] for r in guests.data]
+        return offers.data, claims.data, [row["spot_number"] for row in guests.data]
 
-    async def create_offers(self, user_id, spot, base_start, base_end, weeks):
-        """Create one or more weekly parking offers and return a user-facing confirmation."""
+    async def get_parking_data(self, now, cutoff):
+        """Fetch all raw parking data needed to build the status view."""
+        return await self._run_blocking(
+            self._get_parking_data_sync,
+            now,
+            cutoff,
+            log_context={"operation": "get_parking_data"},
+        )
+
+    def _create_offers_sync(self, user_id, spot, base_start, base_end, weeks):
         all_offers = []
         for i in range(weeks):
             start = base_start + timedelta(weeks=i)
@@ -138,24 +163,34 @@ class ParkingService:
         if not all_offers:
             return False, "❌ This spot is already offered for those times."
 
+        self.supabase.table("parking_offers").insert(all_offers).execute()
+
+        start_label = self._format_datetime_label(base_start)
+        end_label = self._format_datetime_label(base_end)
+        recur_msg = f" for the next **{weeks} weeks**" if weeks > 1 else ""
+        success_msg = (
+            f"📢 **Spot {spot}** listed{recur_msg}\n"
+            f"Start: {start_label}\n"
+            f"End: {end_label}"
+        )
+        return True, success_msg
+
+    async def create_offers(self, user_id, spot, base_start, base_end, weeks):
+        """Create one or more weekly parking offers and return a user-facing confirmation."""
         try:
-            self.supabase.table("parking_offers").insert(all_offers).execute()
-
-            start_label = self._format_datetime_label(base_start)
-            end_label = self._format_datetime_label(base_end)
-            recur_msg = f" for the next **{weeks} weeks**" if weeks > 1 else ""
-            success_msg = (
-                f"📢 **Spot {spot}** listed{recur_msg}\n"
-                f"Start: {start_label}\n"
-                f"End: {end_label}"
+            return await self._run_blocking(
+                self._create_offers_sync,
+                user_id,
+                spot,
+                base_start,
+                base_end,
+                weeks,
+                log_context={"operation": "create_offers", "user_id": str(user_id), "spot": spot},
             )
-
-            return True, success_msg
         except Exception as e:
             return False, f"❌ Database error: {e}"
 
-    async def claim_resident_spot(self, user_id, spot, start, end):
-        """Reserve a guest spot or a resident spot covered by an existing offer."""
+    def _claim_resident_spot_sync(self, user_id, spot, start, end):
         conflict = (
             self.supabase.table("parking_reservations")
             .select("*")
@@ -192,8 +227,18 @@ class ParkingService:
         ).execute()
         return True, f"✅ **Spot {spot}** reserved!"
 
-    async def claim_staff_spot(self, user_id, start, end):
-        """Assign the first available staff spot for a requested window."""
+    async def claim_resident_spot(self, user_id, spot, start, end):
+        """Reserve a guest spot or a resident spot covered by an existing offer."""
+        return await self._run_blocking(
+            self._claim_resident_spot_sync,
+            user_id,
+            spot,
+            start,
+            end,
+            log_context={"operation": "claim_resident_spot", "user_id": str(user_id), "spot": spot},
+        )
+
+    def _claim_staff_spot_sync(self, user_id, start, end):
         if self.is_blackout(start, end):
             return False, "❌ Blackout hours active."
 
@@ -221,8 +266,17 @@ class ParkingService:
         ).execute()
         return True, f"✅ Staff Spot reserved ({start.strftime('%a %I%p')})."
 
-    async def cancel_action(self, user_id, action_type, record_id):
-        """Cancel one selected offer or reservation and return any affected user mentions."""
+    async def claim_staff_spot(self, user_id, start, end):
+        """Assign the first available staff spot for a requested window."""
+        return await self._run_blocking(
+            self._claim_staff_spot_sync,
+            user_id,
+            start,
+            end,
+            log_context={"operation": "claim_staff_spot", "user_id": str(user_id)},
+        )
+
+    def _cancel_action_sync(self, user_id, action_type, record_id):
         now_iso = datetime.now(LOCAL_TZ).isoformat()
 
         if action_type == "offer":
@@ -235,6 +289,10 @@ class ParkingService:
                 .execute()
             )
             if not target.data:
+                logger.warning(
+                    "Parking cancel found no matching offer",
+                    extra={"user_id": str(user_id), "action_type": action_type, "record_id": str(record_id)},
+                )
                 return False, "No matching offers.", None
 
             offer = target.data[0]
@@ -253,16 +311,29 @@ class ParkingService:
             .execute()
         )
         if not target.data:
+            logger.warning(
+                "Parking cancel found no matching reservation",
+                extra={"user_id": str(user_id), "action_type": action_type, "record_id": str(record_id)},
+            )
             return False, "No matching claims.", None
 
         reservation = target.data[0]
         self.supabase.table("parking_reservations").delete().eq("id", str(record_id)).execute()
         return True, f"🔄 Reservation for Spot {reservation['spot_number']} cancelled.", None
 
-    async def get_user_activity(self, user_id):
-        """Fetch active offers and reservations for a specific user."""
-        now_iso = datetime.now(LOCAL_TZ).isoformat()
+    async def cancel_action(self, user_id, action_type, record_id):
+        """Cancel one selected offer or reservation and return any affected user mentions."""
+        return await self._run_blocking(
+            self._cancel_action_sync,
+            user_id,
+            action_type,
+            record_id,
+            timeout=15,
+            log_context={"operation": "cancel_action", "user_id": str(user_id), "action_type": action_type, "record_id": str(record_id)},
+        )
 
+    def _get_user_activity_sync(self, user_id):
+        now_iso = datetime.now(LOCAL_TZ).isoformat()
         offers = (
             self.supabase.table("parking_offers")
             .select("*")
@@ -279,14 +350,57 @@ class ParkingService:
         )
         return offers.data, claims.data
 
+    async def get_user_activity(self, user_id):
+        """Fetch active offers and reservations for a specific user."""
+        return await self._run_blocking(
+            self._get_user_activity_sync,
+            user_id,
+            log_context={"operation": "get_user_activity", "user_id": str(user_id)},
+        )
+
+    def _get_cancel_autocomplete_data_sync(self, user_id, now_iso):
+        offers = (
+            self.supabase.table("parking_offers")
+            .select("*")
+            .eq("owner_id", str(user_id))
+            .gt("end_time", now_iso)
+            .execute()
+        )
+        claims = (
+            self.supabase.table("parking_reservations")
+            .select("*")
+            .eq("claimer_id", str(user_id))
+            .gt("end_time", now_iso)
+            .execute()
+        )
+        return offers.data, claims.data
+
+    async def get_cancel_autocomplete_data(self, user_id, now):
+        """Fetch active offers and reservations for cancel autocomplete."""
+        try:
+            return await self._run_blocking(
+                self._get_cancel_autocomplete_data_sync,
+                user_id,
+                now.isoformat(),
+                timeout=2.5,
+                log_context={"operation": "get_cancel_autocomplete_data", "user_id": str(user_id)},
+            )
+        except Exception:
+            return [], []
+
+    def _get_guest_spot_list_sync(self):
+        response = self.supabase.table("parking_spots").select("spot_number").eq("is_guest", True).execute()
+        guest_spots = [str(row["spot_number"]) for row in response.data]
+        return ", ".join(guest_spots) if guest_spots else "None"
+
     async def get_guest_spot_list(self) -> str:
         """Fetch guest spot numbers and return a formatted string."""
         try:
-            response = self.supabase.table("parking_spots").select("spot_number").eq("is_guest", True).execute()
-            guest_spots = [str(r["spot_number"]) for r in response.data]
-            return ", ".join(guest_spots) if guest_spots else "None"
-        except Exception as e:
-            print(f"⚠️ Service Error fetching guest spots for help: {e}")
+            return await self._run_blocking(
+                self._get_guest_spot_list_sync,
+                log_context={"operation": "get_guest_spot_list"},
+            )
+        except Exception:
             return "Error loading spots"
 
     def get_merged_availability(self, now, cutoff, raw_offers, raw_claims, is_guest=False):
@@ -300,38 +414,38 @@ class ParkingService:
             else:
                 merged_windows = []
                 curr = raw_sorted[0].copy()
-                for next_w in raw_sorted[1:]:
-                    if next_w["start"] <= curr["end"]:
-                        curr["end"] = max(curr["end"], next_w["end"])
+                for next_window in raw_sorted[1:]:
+                    if next_window["start"] <= curr["end"]:
+                        curr["end"] = max(curr["end"], next_window["end"])
                     else:
                         merged_windows.append(curr)
-                        curr = next_w.copy()
+                        curr = next_window.copy()
                 merged_windows.append(curr)
 
         blocks = []
-        for w in merged_windows:
-            w_start, w_end = max(w["start"], now), min(w["end"], cutoff)
-            if w_start >= w_end:
+        for window in merged_windows:
+            window_start, window_end = max(window["start"], now), min(window["end"], cutoff)
+            if window_start >= window_end:
                 continue
 
-            ptr = w_start
+            pointer = window_start
             relevant_claims = sorted(
-                [c for c in raw_claims if not (c["end"] <= w_start or c["start"] >= w_end)],
+                [claim for claim in raw_claims if not (claim["end"] <= window_start or claim["start"] >= window_end)],
                 key=lambda x: x["start"],
             )
 
-            for c in relevant_claims:
-                c_start = max(c["start"], w_start)
-                if (c_start - ptr) >= timedelta(hours=2):
-                    blocks.append((ptr, c_start))
-                ptr = max(ptr, c["end"])
+            for claim in relevant_claims:
+                claim_start = max(claim["start"], window_start)
+                if (claim_start - pointer) >= timedelta(hours=2):
+                    blocks.append((pointer, claim_start))
+                pointer = max(pointer, claim["end"])
 
-            if (w_end - ptr) >= timedelta(hours=2):
-                blocks.append((ptr, w_end))
+            if (window_end - pointer) >= timedelta(hours=2):
+                blocks.append((pointer, window_end))
 
-        current_claim = next((c for c in raw_claims if c["start"] <= now < c["end"]), None)
-        active_block = next((b for b in blocks if b[0] <= now < b[1]), None)
-        next_block = next((b for b in blocks if b[0] > now), None)
+        current_claim = next((claim for claim in raw_claims if claim["start"] <= now < claim["end"]), None)
+        active_block = next((block for block in blocks if block[0] <= now < block[1]), None)
+        next_block = next((block for block in blocks if block[0] > now), None)
 
         if active_block:
             header = f"🟢 Available Now (until {active_block[1].strftime('%a %I%p')})"

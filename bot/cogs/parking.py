@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from collections import Counter
 from datetime import datetime, timedelta
 
@@ -7,6 +9,8 @@ from discord.ext import commands
 
 from bot.services.parking_service import ParkingService
 from bot.utils.constants import LOCAL_TZ, STAFF_SPOTS, VALID_SPOTS, WEEKDAYS
+
+logger = logging.getLogger(__name__)
 
 
 class Parking(commands.Cog):
@@ -33,6 +37,8 @@ class Parking(commands.Cog):
     @app_commands.command(name="my_parking", description="View your active offers and reservations")
     async def my_parking(self, interaction: discord.Interaction):
         """Show the caller's active offers and reservations in one ledger."""
+        await interaction.response.defer(ephemeral=True)
+
         user_id = str(interaction.user.id)
         now = datetime.now(LOCAL_TZ)
         raw_offers, raw_claims = await self.service.get_user_activity(user_id)
@@ -60,7 +66,7 @@ class Parking(commands.Cog):
         claim_lines = [f"{key} (x{count})" if count > 1 else key for key, count in claim_groups.items()]
         embed.add_field(name="📥 My Reservations", value="\n".join(claim_lines) or "No active reservations.", inline=False)
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     @app_commands.command(name="offer_spot", description="List your spot as available")
     @app_commands.choices(start_day=day_choices, end_day=day_choices, start_time=time_choices, end_time=time_choices)
@@ -82,8 +88,9 @@ class Parking(commands.Cog):
         if duration < timedelta(hours=2):
             return await interaction.response.send_message("❌ Offers must be at least 2 hours.", ephemeral=True)
 
+        await interaction.response.defer(ephemeral=True)
         success, msg = await self.service.create_offers(interaction.user.id, spot, start, end, weeks)
-        await interaction.response.send_message(msg, ephemeral=not success)
+        await interaction.followup.send(msg, ephemeral=not success)
 
     @app_commands.command(name="claim_spot", description="Reserve a resident or guest spot")
     @app_commands.choices(start_day=day_choices, end_day=day_choices, start_time=time_choices, end_time=time_choices)
@@ -104,8 +111,9 @@ class Parking(commands.Cog):
         if duration < timedelta(hours=2) or duration > timedelta(days=7):
             return await interaction.response.send_message("❌ Must be between 2h and 7d.", ephemeral=True)
 
+        await interaction.response.defer(ephemeral=True)
         success, msg = await self.service.claim_resident_spot(interaction.user.id, spot, start, end)
-        await interaction.response.send_message(msg, ephemeral=not success)
+        await interaction.followup.send(msg, ephemeral=not success)
 
     @app_commands.command(name="claim_staff", description="Reserve a staff spot")
     @app_commands.choices(start_day=day_choices, end_day=day_choices, start_time=time_choices, end_time=time_choices)
@@ -119,12 +127,15 @@ class Parking(commands.Cog):
     ):
         """Reserve one of the rotating staff spots if blackout rules allow it."""
         start, end, _duration = self.service.parse_range(start_day.value, start_time.value, end_day.value, end_time.value)
+        await interaction.response.defer(ephemeral=True)
         success, msg = await self.service.claim_staff_spot(interaction.user.id, start, end)
-        await interaction.response.send_message(msg, ephemeral=not success)
+        await interaction.followup.send(msg, ephemeral=not success)
 
     @app_commands.command(name="parking_status", description="View available parking spots")
     async def parking_status(self, interaction: discord.Interaction):
         """Summarize resident, guest, and staff parking availability for the next week."""
+        await interaction.response.defer(ephemeral=True)
+
         now = datetime.now(LOCAL_TZ).replace(minute=0, second=0, microsecond=0)
         cutoff = now + timedelta(days=7)
         raw_offers, raw_claims, guest_spots = await self.service.get_parking_data(now, cutoff)
@@ -188,7 +199,7 @@ class Parking(commands.Cog):
         embed.add_field(name="Staff Parking", value=staff_status, inline=False)
         embed.set_footer(text="Gerald Parking System • Chicago Time")
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     async def cancel_spot_autocomplete(
         self,
@@ -197,26 +208,13 @@ class Parking(commands.Cog):
     ) -> list[app_commands.Choice[str]]:
         """Build autocomplete options for the caller's cancellable offers and reservations."""
         user_id = str(interaction.user.id)
-        choices = []
         now = datetime.now(LOCAL_TZ)
 
         try:
-            offers_res = (
-                self.service.supabase.table("parking_offers")
-                .select("*")
-                .eq("owner_id", user_id)
-                .gt("end_time", now.isoformat())
-                .execute()
-            )
-            claims_res = (
-                self.service.supabase.table("parking_reservations")
-                .select("*")
-                .eq("claimer_id", user_id)
-                .gt("end_time", now.isoformat())
-                .execute()
-            )
+            offers, claims = await self.service.get_cancel_autocomplete_data(user_id, now)
+            choices = []
 
-            for offer in offers_res.data or []:
+            for offer in offers or []:
                 start = datetime.fromisoformat(offer["start_time"]).astimezone(LOCAL_TZ)
                 end = datetime.fromisoformat(offer["end_time"]).astimezone(LOCAL_TZ)
                 label = (
@@ -227,7 +225,7 @@ class Parking(commands.Cog):
                 if current.lower() in label.lower():
                     choices.append(app_commands.Choice(name=label, value=f"sig_offer_{offer['id']}"))
 
-            for claim in claims_res.data or []:
+            for claim in claims or []:
                 start = datetime.fromisoformat(claim["start_time"]).astimezone(LOCAL_TZ)
                 end = datetime.fromisoformat(claim["end_time"]).astimezone(LOCAL_TZ)
                 spot_label = "Staff" if claim["spot_number"] in STAFF_SPOTS else f"Spot {claim['spot_number']}"
@@ -239,11 +237,13 @@ class Parking(commands.Cog):
                 if current.lower() in label.lower():
                     choices.append(app_commands.Choice(name=label, value=f"sig_claim_{claim['id']}"))
 
-        except Exception as e:
-            print(f"Autocomplete Error: {e}")
+            return choices[:25]
+        except Exception:
+            logger.exception(
+                "Parking cancel autocomplete failed",
+                extra={"user_id": user_id, "current": current},
+            )
             return []
-
-        return choices[:25]
 
     @app_commands.command(name="cancel", description="Cancel your reservations or withdraw offers")
     @app_commands.autocomplete(spot=cancel_spot_autocomplete)
@@ -254,20 +254,40 @@ class Parking(commands.Cog):
 
         await interaction.response.defer(ephemeral=True)
 
-        _, action_type, record_id = spot.split("_", 2)
-        success, msg, pings = await self.service.cancel_action(interaction.user.id, action_type, record_id)
+        try:
+            _, action_type, record_id = spot.split("_", 2)
+            success, msg, pings = await self.service.cancel_action(interaction.user.id, action_type, record_id)
+        except asyncio.TimeoutError:
+            logger.exception(
+                "Parking cancel timed out in command handler",
+                extra={"user_id": str(interaction.user.id), "spot_token": spot},
+            )
+            return await interaction.followup.send("❌ Cancel timed out. Please try again in a moment.", ephemeral=True)
+        except Exception:
+            logger.exception(
+                "Parking cancel failed in command handler",
+                extra={"user_id": str(interaction.user.id), "spot_token": spot},
+            )
+            return await interaction.followup.send(
+                "❌ Something went wrong while canceling that entry.",
+                ephemeral=True,
+            )
 
         if pings:
             try:
                 await interaction.channel.send(f"⚠️ **Attention {', '.join(pings)}**: {msg}")
-            except Exception as e:
-                print(f"Parking cancel ping failed: {e}")
+            except Exception:
+                logger.exception(
+                    "Parking cancel notification ping failed",
+                    extra={"user_id": str(interaction.user.id), "spot_token": spot, "pings": pings},
+                )
 
         await interaction.followup.send(msg, ephemeral=True)
 
     @app_commands.command(name="parking_help", description="How to use the parking system")
     async def parking_help(self, interaction: discord.Interaction):
         """Send an overview of parking commands, rules, and guest spot details."""
+        await interaction.response.defer(ephemeral=True)
         guest_list_str = await self.service.get_guest_spot_list()
 
         embed = discord.Embed(
@@ -308,7 +328,7 @@ class Parking(commands.Cog):
             inline=False,
         )
         embed.set_footer(text="All times are in America/Chicago (CST/CDT)")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 async def setup(bot):
