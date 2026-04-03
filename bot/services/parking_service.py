@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import time
 from datetime import datetime, timedelta
 
 from dateutil.relativedelta import relativedelta
@@ -14,11 +15,16 @@ logger = logging.getLogger(__name__)
 class ParkingService:
     """Database-backed business logic for the parking system."""
 
+    AUTOCOMPLETE_CACHE_TTL_SECONDS = 5
+    AUTOCOMPLETE_TIMEOUT_SECONDS = 1.25
+
     def __init__(self):
         """Create the shared Supabase client used by parking commands."""
         url = os.environ.get("SUPABASE_URL")
         key = os.environ.get("SUPABASE_SERVICE_KEY")
         self.supabase = create_client(url, key)
+        self._claim_autocomplete_cache = None
+        self._cancel_autocomplete_cache = {}
 
     async def _run_blocking(self, func, *args, timeout=15, log_context=None):
         """Run a blocking Supabase operation off the event loop with timeout/logging."""
@@ -30,6 +36,25 @@ class ParkingService:
         except Exception:
             logger.exception("Parking service operation failed", extra=log_context or {})
             raise
+
+    def _get_cached_value(self, cache_entry):
+        """Return a cached autocomplete payload when it is still fresh."""
+        if not cache_entry:
+            return None
+
+        cached_at, payload = cache_entry
+        if (time.monotonic() - cached_at) <= self.AUTOCOMPLETE_CACHE_TTL_SECONDS:
+            return payload
+        return None
+
+    def _store_cache_value(self, cache_name, key, payload):
+        """Persist a short-lived autocomplete payload in memory."""
+        entry = (time.monotonic(), payload)
+        if cache_name == "claim":
+            self._claim_autocomplete_cache = entry
+            return
+
+        self._cancel_autocomplete_cache[key] = entry
 
     def parse_range(self, s_day_int, s_time_str, e_day_int, e_time_str):
         """Convert weekday and hour choices into the next matching start/end datetimes."""
@@ -380,19 +405,24 @@ class ParkingService:
 
     async def get_cancel_autocomplete_data(self, user_id, now):
         """Fetch active offers and reservations for cancel autocomplete."""
+        cached = self._get_cached_value(self._cancel_autocomplete_cache.get(str(user_id)))
+        if cached is not None:
+            return cached
+
         try:
-            return await self._run_blocking(
+            payload = await self._run_blocking(
                 self._get_cancel_autocomplete_data_sync,
                 user_id,
                 now.isoformat(),
-                timeout=2.5,
+                timeout=self.AUTOCOMPLETE_TIMEOUT_SECONDS,
                 log_context={"operation": "get_cancel_autocomplete_data", "user_id": str(user_id)},
             )
+            self._store_cache_value("cancel", str(user_id), payload)
+            return payload
         except Exception:
             return [], []
 
     def _get_claim_autocomplete_data_sync(self, now_iso):
-        guest_spots = self.supabase.table("parking_spots").select("spot_number").eq("is_guest", True).execute()
         offers = (
             self.supabase.table("parking_offers")
             .select("spot_number,start_time,end_time")
@@ -405,17 +435,24 @@ class ParkingService:
             .gt("end_time", now_iso)
             .execute()
         )
-        return guest_spots.data, offers.data, claims.data
+        guest_spots = [{"spot_number": spot} for spot in GUEST_SPOTS]
+        return guest_spots, offers.data, claims.data
 
     async def get_claim_autocomplete_data(self, now):
         """Fetch guest spots, active offers, and active claims for claim autocomplete."""
+        cached = self._get_cached_value(self._claim_autocomplete_cache)
+        if cached is not None:
+            return cached
+
         try:
-            return await self._run_blocking(
+            payload = await self._run_blocking(
                 self._get_claim_autocomplete_data_sync,
                 now.isoformat(),
-                timeout=2.5,
+                timeout=self.AUTOCOMPLETE_TIMEOUT_SECONDS,
                 log_context={"operation": "get_claim_autocomplete_data"},
             )
+            self._store_cache_value("claim", None, payload)
+            return payload
         except Exception:
             return [], [], []
 
