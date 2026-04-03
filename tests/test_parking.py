@@ -51,6 +51,7 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         self.service.cancel_action = AsyncMock()
         self.service.get_guest_spot_list = AsyncMock()
         self.service.get_cancel_autocomplete_data = AsyncMock(return_value=([], []))
+        self.service.get_claim_autocomplete_data = AsyncMock(return_value=([], [], []))
         self.service.parse_range = MagicMock()
         self.service.get_merged_availability = MagicMock()
         self.service_cls.return_value = self.service
@@ -120,8 +121,8 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         start = datetime.fromisoformat("2026-04-02T16:00:00-05:00")
         end = datetime.fromisoformat("2026-04-05T12:00:00-05:00")
         self.service.parse_range.return_value = (start, end, timedelta(days=2, hours=20))
-        guest_query = make_query([{"spot_number": 46}])
-        offer_query = make_query(
+        self.service.get_claim_autocomplete_data.return_value = (
+            [{"spot_number": 46}],
             [
                 {
                     "spot_number": 27,
@@ -133,10 +134,9 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
                     "start_time": "2026-04-02T18:00:00-05:00",
                     "end_time": "2026-04-05T12:00:00-05:00",
                 },
-            ]
+            ],
+            [],
         )
-        self.service.supabase = MagicMock()
-        self.service.supabase.table.side_effect = [guest_query, offer_query]
         interaction = make_interaction()
         interaction.namespace = SimpleNamespace(
             start_day=SimpleNamespace(value=3),
@@ -149,6 +149,40 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual([choice.value for choice in choices], [27, 46])
         self.assertEqual([choice.name for choice in choices], ["Spot 27 (Offered)", "Spot 46 (Guest)"])
+
+    async def test_claim_spot_autocomplete_excludes_offered_spot_with_overlapping_claim(self):
+        start = datetime.fromisoformat("2026-04-02T16:00:00-05:00")
+        end = datetime.fromisoformat("2026-04-05T12:00:00-05:00")
+        self.service.parse_range.return_value = (start, end, timedelta(days=2, hours=20))
+        self.service.get_claim_autocomplete_data.return_value = (
+            [{"spot_number": 46}],
+            [
+                {
+                    "spot_number": 27,
+                    "start_time": "2026-04-02T16:00:00-05:00",
+                    "end_time": "2026-04-05T12:00:00-05:00",
+                }
+            ],
+            [
+                {
+                    "spot_number": 27,
+                    "start_time": "2026-04-03T10:00:00-05:00",
+                    "end_time": "2026-04-03T12:00:00-05:00",
+                }
+            ],
+        )
+        interaction = make_interaction()
+        interaction.namespace = SimpleNamespace(
+            start_day=SimpleNamespace(value=3),
+            start_time=SimpleNamespace(value="4 PM"),
+            end_day=SimpleNamespace(value=6),
+            end_time=SimpleNamespace(value="12 PM"),
+        )
+
+        choices = await self.cog.claim_spot_autocomplete(interaction, "")
+
+        self.assertEqual([choice.value for choice in choices], [46])
+        self.assertEqual([choice.name for choice in choices], ["Spot 46 (Guest)"])
 
     async def test_my_parking_formats_offers_and_claims(self):
         interaction = make_interaction()

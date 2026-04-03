@@ -391,6 +391,34 @@ class ParkingService:
         except Exception:
             return [], []
 
+    def _get_claim_autocomplete_data_sync(self, now_iso):
+        guest_spots = self.supabase.table("parking_spots").select("spot_number").eq("is_guest", True).execute()
+        offers = (
+            self.supabase.table("parking_offers")
+            .select("spot_number,start_time,end_time")
+            .gt("end_time", now_iso)
+            .execute()
+        )
+        claims = (
+            self.supabase.table("parking_reservations")
+            .select("spot_number,start_time,end_time")
+            .gt("end_time", now_iso)
+            .execute()
+        )
+        return guest_spots.data, offers.data, claims.data
+
+    async def get_claim_autocomplete_data(self, now):
+        """Fetch guest spots, active offers, and active claims for claim autocomplete."""
+        try:
+            return await self._run_blocking(
+                self._get_claim_autocomplete_data_sync,
+                now.isoformat(),
+                timeout=2.5,
+                log_context={"operation": "get_claim_autocomplete_data"},
+            )
+        except Exception:
+            return [], [], []
+
     def _get_guest_spot_list_sync(self):
         response = self.supabase.table("parking_spots").select("spot_number").eq("is_guest", True).execute()
         guest_spots = [str(row["spot_number"]) for row in response.data]
