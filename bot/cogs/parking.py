@@ -30,6 +30,39 @@ class Parking(commands.Cog):
         self.bot = bot
         self.service = ParkingService()
 
+    @staticmethod
+    def _mark_autocomplete_responded(response):
+        """Mark an autocomplete interaction as handled to avoid duplicate sends."""
+        if hasattr(response, "_response_type") and getattr(response, "_response_type", None) is None:
+            response._response_type = discord.InteractionResponseType.autocomplete_result
+
+    async def _finalize_autocomplete(self, interaction, choices, *, handler_name, log_context):
+        """Send autocomplete results directly when possible and swallow stale-response errors."""
+        response = getattr(interaction, "response", None)
+        if response is None or not hasattr(response, "autocomplete") or not hasattr(response, "is_done"):
+            return choices
+
+        if response.is_done():
+            return []
+
+        try:
+            await response.autocomplete(choices)
+        except discord.InteractionResponded:
+            logger.warning("%s autocomplete was already acknowledged", handler_name, extra=log_context)
+            self._mark_autocomplete_responded(response)
+        except discord.HTTPException as exc:
+            if exc.code in {40060, 10062}:
+                logger.warning(
+                    "%s autocomplete response was stale",
+                    handler_name,
+                    extra={**log_context, "discord_error_code": exc.code},
+                )
+                self._mark_autocomplete_responded(response)
+            else:
+                raise
+
+        return []
+
     async def initialize_parking_spots(self):
         """Ensure the configured parking spots exist in the backing database."""
         await self.service.initialize_spots()
@@ -100,54 +133,72 @@ class Parking(commands.Cog):
         current: str,
     ) -> list[app_commands.Choice[int]]:
         """Suggest claimable spots that appear to cover the selected time window."""
-        namespace = interaction.namespace
-        required_fields = ("start_day", "start_time", "end_day", "end_time")
-        if not all(hasattr(namespace, field) and getattr(namespace, field) is not None for field in required_fields):
-            return []
+        log_context = {"user_id": str(interaction.user.id), "current": current}
 
         try:
+            namespace = interaction.namespace
+            required_fields = ("start_day", "start_time", "end_day", "end_time")
+            if not all(hasattr(namespace, field) and getattr(namespace, field) is not None for field in required_fields):
+                return await self._finalize_autocomplete(
+                    interaction,
+                    [],
+                    handler_name="Parking claim_spot",
+                    log_context=log_context,
+                )
+
             start_day = getattr(namespace.start_day, "value", namespace.start_day)
             start_time = getattr(namespace.start_time, "value", namespace.start_time)
             end_day = getattr(namespace.end_day, "value", namespace.end_day)
             end_time = getattr(namespace.end_time, "value", namespace.end_time)
             start, end, duration = self.service.parse_range(start_day, start_time, end_day, end_time)
+
+            if duration < timedelta(hours=2) or duration > timedelta(days=7):
+                return await self._finalize_autocomplete(
+                    interaction,
+                    [],
+                    handler_name="Parking claim_spot",
+                    log_context=log_context,
+                )
+
+            now = datetime.now(LOCAL_TZ)
+            guest_spots, offered_spots, claims = await self.service.get_claim_autocomplete_data(now)
+
+            def has_overlapping_claim(spot_num):
+                for row in claims or []:
+                    if row["spot_number"] != spot_num:
+                        continue
+                    claim_start = datetime.fromisoformat(row["start_time"]).astimezone(LOCAL_TZ)
+                    claim_end = datetime.fromisoformat(row["end_time"]).astimezone(LOCAL_TZ)
+                    if claim_start < end and claim_end > start:
+                        return True
+                return False
+
+            available_spots = {
+                row["spot_number"]: "Guest"
+                for row in guest_spots or []
+                if not has_overlapping_claim(row["spot_number"])
+            }
+            for row in offered_spots or []:
+                offer_start = datetime.fromisoformat(row["start_time"]).astimezone(LOCAL_TZ)
+                offer_end = datetime.fromisoformat(row["end_time"]).astimezone(LOCAL_TZ)
+                if offer_start <= start and offer_end >= end and not has_overlapping_claim(row["spot_number"]):
+                    available_spots.setdefault(row["spot_number"], "Offered")
+
+            choices = []
+            for spot_num, label in sorted(available_spots.items()):
+                name = f"Spot {spot_num} ({label})"
+                if current.lower() in name.lower():
+                    choices.append(app_commands.Choice(name=name, value=spot_num))
         except Exception:
-            return []
+            logger.exception("Parking claim_spot autocomplete failed", extra=log_context)
+            choices = []
 
-        if duration < timedelta(hours=2) or duration > timedelta(days=7):
-            return []
-
-        now = datetime.now(LOCAL_TZ)
-        guest_spots, offered_spots, claims = await self.service.get_claim_autocomplete_data(now)
-
-        def has_overlapping_claim(spot_num):
-            for row in claims or []:
-                if row["spot_number"] != spot_num:
-                    continue
-                claim_start = datetime.fromisoformat(row["start_time"]).astimezone(LOCAL_TZ)
-                claim_end = datetime.fromisoformat(row["end_time"]).astimezone(LOCAL_TZ)
-                if claim_start < end and claim_end > start:
-                    return True
-            return False
-
-        available_spots = {
-            row["spot_number"]: "Guest"
-            for row in guest_spots or []
-            if not has_overlapping_claim(row["spot_number"])
-        }
-        for row in offered_spots or []:
-            offer_start = datetime.fromisoformat(row["start_time"]).astimezone(LOCAL_TZ)
-            offer_end = datetime.fromisoformat(row["end_time"]).astimezone(LOCAL_TZ)
-            if offer_start <= start and offer_end >= end and not has_overlapping_claim(row["spot_number"]):
-                available_spots.setdefault(row["spot_number"], "Offered")
-
-        choices = []
-        for spot_num, label in sorted(available_spots.items()):
-            name = f"Spot {spot_num} ({label})"
-            if current.lower() in name.lower():
-                choices.append(app_commands.Choice(name=name, value=spot_num))
-
-        return choices[:25]
+        return await self._finalize_autocomplete(
+            interaction,
+            choices[:25],
+            handler_name="Parking claim_spot",
+            log_context=log_context,
+        )
 
     @app_commands.command(name="claim_spot", description="Reserve a resident or guest spot")
     @app_commands.choices(start_day=day_choices, end_day=day_choices, start_time=time_choices, end_time=time_choices)
@@ -269,6 +320,7 @@ class Parking(commands.Cog):
         """Build autocomplete options for the caller's cancellable offers and reservations."""
         user_id = str(interaction.user.id)
         now = datetime.now(LOCAL_TZ)
+        log_context = {"user_id": user_id, "current": current}
 
         try:
             offers, claims = await self.service.get_cancel_autocomplete_data(user_id, now)
@@ -296,14 +348,19 @@ class Parking(commands.Cog):
                 )
                 if current.lower() in label.lower():
                     choices.append(app_commands.Choice(name=label, value=f"sig_claim_{claim['id']}"))
-
-            return choices[:25]
         except Exception:
             logger.exception(
                 "Parking cancel autocomplete failed",
-                extra={"user_id": user_id, "current": current},
+                extra=log_context,
             )
-            return []
+            choices = []
+
+        return await self._finalize_autocomplete(
+            interaction,
+            choices[:25],
+            handler_name="Parking cancel",
+            log_context=log_context,
+        )
 
     @app_commands.command(name="cancel", description="Cancel your reservations or withdraw offers")
     @app_commands.autocomplete(spot=cancel_spot_autocomplete)
