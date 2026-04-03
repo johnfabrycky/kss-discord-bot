@@ -118,24 +118,27 @@ class Parking(commands.Cog):
             return []
 
         now = datetime.now(LOCAL_TZ)
-        guest_spots = (
-            self.service.supabase.table("parking_spots")
-            .select("spot_number")
-            .eq("is_guest", True)
-            .execute()
-        )
-        offered_spots = (
-            self.service.supabase.table("parking_offers")
-            .select("spot_number,start_time,end_time")
-            .gt("end_time", now.isoformat())
-            .execute()
-        )
+        guest_spots, offered_spots, claims = await self.service.get_claim_autocomplete_data(now)
 
-        available_spots = {row["spot_number"]: "Guest" for row in guest_spots.data or []}
-        for row in offered_spots.data or []:
+        def has_overlapping_claim(spot_num):
+            for row in claims or []:
+                if row["spot_number"] != spot_num:
+                    continue
+                claim_start = datetime.fromisoformat(row["start_time"]).astimezone(LOCAL_TZ)
+                claim_end = datetime.fromisoformat(row["end_time"]).astimezone(LOCAL_TZ)
+                if claim_start < end and claim_end > start:
+                    return True
+            return False
+
+        available_spots = {
+            row["spot_number"]: "Guest"
+            for row in guest_spots or []
+            if not has_overlapping_claim(row["spot_number"])
+        }
+        for row in offered_spots or []:
             offer_start = datetime.fromisoformat(row["start_time"]).astimezone(LOCAL_TZ)
             offer_end = datetime.fromisoformat(row["end_time"]).astimezone(LOCAL_TZ)
-            if offer_start <= start and offer_end >= end:
+            if offer_start <= start and offer_end >= end and not has_overlapping_claim(row["spot_number"]):
                 available_spots.setdefault(row["spot_number"], "Offered")
 
         choices = []
