@@ -94,6 +94,58 @@ class Parking(commands.Cog):
         success, msg = await self.service.create_offers(interaction.user.id, spot, start, end, weeks)
         await interaction.followup.send(msg, ephemeral=not success)
 
+    async def claim_spot_autocomplete(
+        self,
+        interaction: discord.Interaction,
+        current: str,
+    ) -> list[app_commands.Choice[int]]:
+        """Suggest claimable spots that appear to cover the selected time window."""
+        namespace = interaction.namespace
+        required_fields = ("start_day", "start_time", "end_day", "end_time")
+        if not all(hasattr(namespace, field) and getattr(namespace, field) is not None for field in required_fields):
+            return []
+
+        try:
+            start_day = getattr(namespace.start_day, "value", namespace.start_day)
+            start_time = getattr(namespace.start_time, "value", namespace.start_time)
+            end_day = getattr(namespace.end_day, "value", namespace.end_day)
+            end_time = getattr(namespace.end_time, "value", namespace.end_time)
+            start, end, duration = self.service.parse_range(start_day, start_time, end_day, end_time)
+        except Exception:
+            return []
+
+        if duration < timedelta(hours=2) or duration > timedelta(days=7):
+            return []
+
+        now = datetime.now(LOCAL_TZ)
+        guest_spots = (
+            self.service.supabase.table("parking_spots")
+            .select("spot_number")
+            .eq("is_guest", True)
+            .execute()
+        )
+        offered_spots = (
+            self.service.supabase.table("parking_offers")
+            .select("spot_number,start_time,end_time")
+            .gt("end_time", now.isoformat())
+            .execute()
+        )
+
+        available_spots = {row["spot_number"]: "Guest" for row in guest_spots.data or []}
+        for row in offered_spots.data or []:
+            offer_start = datetime.fromisoformat(row["start_time"]).astimezone(LOCAL_TZ)
+            offer_end = datetime.fromisoformat(row["end_time"]).astimezone(LOCAL_TZ)
+            if offer_start <= start and offer_end >= end:
+                available_spots.setdefault(row["spot_number"], "Offered")
+
+        choices = []
+        for spot_num, label in sorted(available_spots.items()):
+            name = f"Spot {spot_num} ({label})"
+            if current.lower() in name.lower():
+                choices.append(app_commands.Choice(name=name, value=spot_num))
+
+        return choices[:25]
+
     @app_commands.command(name="claim_spot", description="Reserve a resident or guest spot")
     @app_commands.choices(start_day=day_choices, end_day=day_choices, start_time=time_choices, end_time=time_choices)
     async def claim_spot(
