@@ -1,3 +1,5 @@
+import asyncio
+import logging
 import os
 from datetime import datetime, timedelta
 
@@ -5,6 +7,8 @@ from dateutil.relativedelta import relativedelta
 from supabase import create_client
 
 from bot.utils.constants import GUEST_SPOTS, LOCAL_TZ, STAFF_SPOTS, VALID_SPOTS
+
+logger = logging.getLogger(__name__)
 
 
 class ParkingService:
@@ -221,8 +225,8 @@ class ParkingService:
         ).execute()
         return True, f"✅ Staff Spot reserved ({start.strftime('%a %I%p')})."
 
-    async def cancel_action(self, user_id, action_type, record_id):
-        """Cancel one selected offer or reservation and return any affected user mentions."""
+    def _cancel_action_sync(self, user_id, action_type, record_id):
+        """Synchronously cancel one selected offer or reservation."""
         now_iso = datetime.now(LOCAL_TZ).isoformat()
 
         if action_type == "offer":
@@ -235,6 +239,14 @@ class ParkingService:
                 .execute()
             )
             if not target.data:
+                logger.warning(
+                    "Parking cancel found no matching offer",
+                    extra={
+                        "user_id": str(user_id),
+                        "action_type": action_type,
+                        "record_id": str(record_id),
+                    },
+                )
                 return False, "No matching offers.", None
 
             offer = target.data[0]
@@ -253,11 +265,47 @@ class ParkingService:
             .execute()
         )
         if not target.data:
+            logger.warning(
+                "Parking cancel found no matching reservation",
+                extra={
+                    "user_id": str(user_id),
+                    "action_type": action_type,
+                    "record_id": str(record_id),
+                },
+            )
             return False, "No matching claims.", None
 
         reservation = target.data[0]
         self.supabase.table("parking_reservations").delete().eq("id", str(record_id)).execute()
         return True, f"🔄 Reservation for Spot {reservation['spot_number']} cancelled.", None
+
+    async def cancel_action(self, user_id, action_type, record_id):
+        """Cancel one selected offer or reservation and return any affected user mentions."""
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(self._cancel_action_sync, user_id, action_type, record_id),
+                timeout=15,
+            )
+        except asyncio.TimeoutError:
+            logger.exception(
+                "Parking cancel timed out",
+                extra={
+                    "user_id": str(user_id),
+                    "action_type": action_type,
+                    "record_id": str(record_id),
+                },
+            )
+            raise
+        except Exception:
+            logger.exception(
+                "Parking cancel failed in service layer",
+                extra={
+                    "user_id": str(user_id),
+                    "action_type": action_type,
+                    "record_id": str(record_id),
+                },
+            )
+            raise
 
     async def get_user_activity(self, user_id):
         """Fetch active offers and reservations for a specific user."""

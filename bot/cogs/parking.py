@@ -1,4 +1,6 @@
 from collections import Counter
+import asyncio
+import logging
 from datetime import datetime, timedelta
 
 import discord
@@ -7,6 +9,8 @@ from discord.ext import commands
 
 from bot.services.parking_service import ParkingService
 from bot.utils.constants import LOCAL_TZ, STAFF_SPOTS, VALID_SPOTS, WEEKDAYS
+
+logger = logging.getLogger(__name__)
 
 
 class Parking(commands.Cog):
@@ -240,7 +244,13 @@ class Parking(commands.Cog):
                     choices.append(app_commands.Choice(name=label, value=f"sig_claim_{claim['id']}"))
 
         except Exception as e:
-            print(f"Autocomplete Error: {e}")
+            logger.exception(
+                "Parking cancel autocomplete failed",
+                extra={
+                    "user_id": user_id,
+                    "current": current,
+                },
+            )
             return []
 
         return choices[:25]
@@ -254,14 +264,46 @@ class Parking(commands.Cog):
 
         await interaction.response.defer(ephemeral=True)
 
-        _, action_type, record_id = spot.split("_", 2)
-        success, msg, pings = await self.service.cancel_action(interaction.user.id, action_type, record_id)
+        try:
+            _, action_type, record_id = spot.split("_", 2)
+            success, msg, pings = await self.service.cancel_action(interaction.user.id, action_type, record_id)
+        except asyncio.TimeoutError:
+            logger.exception(
+                "Parking cancel timed out in command handler",
+                extra={
+                    "user_id": str(interaction.user.id),
+                    "spot_token": spot,
+                },
+            )
+            return await interaction.followup.send(
+                "❌ Cancel timed out. Please try again in a moment.",
+                ephemeral=True,
+            )
+        except Exception:
+            logger.exception(
+                "Parking cancel failed in command handler",
+                extra={
+                    "user_id": str(interaction.user.id),
+                    "spot_token": spot,
+                },
+            )
+            return await interaction.followup.send(
+                "❌ Something went wrong while canceling that entry.",
+                ephemeral=True,
+            )
 
         if pings:
             try:
                 await interaction.channel.send(f"⚠️ **Attention {', '.join(pings)}**: {msg}")
-            except Exception as e:
-                print(f"Parking cancel ping failed: {e}")
+            except Exception:
+                logger.exception(
+                    "Parking cancel notification ping failed",
+                    extra={
+                        "user_id": str(interaction.user.id),
+                        "spot_token": spot,
+                        "pings": pings,
+                    },
+                )
 
         await interaction.followup.send(msg, ephemeral=True)
 
