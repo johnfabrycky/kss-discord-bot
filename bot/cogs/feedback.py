@@ -1,11 +1,9 @@
 import asyncio
 import logging
-import os
-
 import discord
 from discord import app_commands, ui
 from discord.ext import commands
-from supabase import Client, create_client
+from supabase import Client
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +61,7 @@ class Feedback(commands.Cog):
     def __init__(self, bot):
         """Initialize the cog and connect to Supabase."""
         self.bot = bot
-        url = os.environ.get("SUPABASE_URL")
-        key = os.environ.get("SUPABASE_SERVICE_KEY")
-        self.supabase: Client = create_client(url, key)
+        self.supabase: Client = bot.supabase
 
     @app_commands.command(
         name="feedback",

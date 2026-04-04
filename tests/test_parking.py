@@ -55,7 +55,7 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         self.service.parse_range = MagicMock()
         self.service.get_merged_availability = MagicMock()
         self.service_cls.return_value = self.service
-        self.cog = parking_module.Parking(bot=object())
+        self.cog = parking_module.Parking(bot=SimpleNamespace(supabase=MagicMock()))
 
     async def test_initialize_parking_spots_delegates_to_service(self):
         await self.cog.initialize_parking_spots()

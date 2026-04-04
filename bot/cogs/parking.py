@@ -28,7 +28,7 @@ class Parking(commands.Cog):
     def __init__(self, bot):
         """Initialize the parking cog and its shared service layer."""
         self.bot = bot
-        self.service = ParkingService()
+        self.service = ParkingService(bot.supabase)
 
     @staticmethod
     def _mark_autocomplete_responded(response):

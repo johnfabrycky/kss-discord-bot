@@ -48,14 +48,11 @@ class LatesCogTests(unittest.IsolatedAsyncioTestCase):
         self.supabase = MagicMock()
         self.supabase.table.return_value = make_query([])
         self.supabase.table.side_effect = lambda _: make_query([])
-        self.supabase_patch = patch.object(lates_module, "supabase", self.supabase)
-        self.supabase_patch.start()
-        self.addCleanup(self.supabase_patch.stop)
         self.run_patch = patch("bot.cogs.lates.run_supabase",
                                new=AsyncMock(side_effect=lambda query, timeout=10: query.execute()))
         self.mock_run = self.run_patch.start()
         self.addCleanup(self.run_patch.stop)
-        self.cog = lates_module.Lates(bot=object())
+        self.cog = lates_module.Lates(bot=SimpleNamespace(supabase=self.supabase))
 
     def test_get_user_house_returns_expected_house(self):
         member = SimpleNamespace(roles=[SimpleNamespace(name="Koinonian"), SimpleNamespace(name="Resident")])

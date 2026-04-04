@@ -18,11 +18,13 @@ class ParkingService:
     AUTOCOMPLETE_CACHE_TTL_SECONDS = 5
     AUTOCOMPLETE_TIMEOUT_SECONDS = 1.25
 
-    def __init__(self):
-        """Create the shared Supabase client used by parking commands."""
-        url = os.environ.get("SUPABASE_URL")
-        key = os.environ.get("SUPABASE_SERVICE_KEY")
-        self.supabase = create_client(url, key)
+    def __init__(self, supabase=None):
+        """Use the shared Supabase client, falling back to direct creation when needed."""
+        if supabase is None:
+            url = os.environ.get("SUPABASE_URL")
+            key = os.environ.get("SUPABASE_SERVICE_KEY")
+            supabase = create_client(url, key)
+        self.supabase = supabase
         self._claim_autocomplete_cache = None
         self._cancel_autocomplete_cache = {}
 

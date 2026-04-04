@@ -8,14 +8,8 @@ import discord
 import pytz
 from discord import app_commands
 from discord.ext import commands, tasks
-from flask.cli import load_dotenv
-from supabase import create_client
 
 local_tz = pytz.timezone("America/Chicago")
-load_dotenv()
-url = os.environ.get("SUPABASE_URL")
-key = os.environ.get("SUPABASE_SERVICE_KEY")
-supabase = create_client(url, key)
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +24,7 @@ class Lates(commands.Cog):
     def __init__(self, bot):
         """Initialize the cog and start the nightly cleanup loop."""
         self.bot = bot
+        self.supabase = bot.supabase
         self.days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         self.meals = ["Lunch", "Dinner"]
         self.cleanup_loop.start()
@@ -59,7 +54,7 @@ class Lates(commands.Cog):
     async def perform_cleanup(self, day_to_clean: str = None):
         """Delete temporary lates for a specific day or for all days."""
         try:
-            query = supabase.table("lates").delete().eq("is_permanent", False)
+            query = self.supabase.table("lates").delete().eq("is_permanent", False)
             if day_to_clean:
                 query = query.eq("day_of_week", day_to_clean)
 
@@ -107,7 +102,7 @@ class Lates(commands.Cog):
 
         target_roles = ["koinonian"] if house == "koinonian" else ["stratfordite", "suttonite"]
         res = await run_supabase(
-            supabase.table("lates").select("*").eq("day_of_week", day).eq("meal", meal).in_("role", target_roles)
+            self.supabase.table("lates").select("*").eq("day_of_week", day).eq("meal", meal).in_("role", target_roles)
         )
 
         filtered_list = []
@@ -149,7 +144,7 @@ class Lates(commands.Cog):
         is_permanent = duration == "True"
 
         existing = await run_supabase(
-            supabase.table("lates").select("*").eq("user_id", user_id).eq("day_of_week", day).eq("meal", meal)
+            self.supabase.table("lates").select("*").eq("user_id", user_id).eq("day_of_week", day).eq("meal", meal)
         )
         if existing.data:
             return await interaction.followup.send("❌ You already have a late for this meal.", ephemeral=True)
@@ -162,7 +157,7 @@ class Lates(commands.Cog):
             "day_of_week": day,
             "is_permanent": is_permanent,
         }
-        await run_supabase(supabase.table("lates").insert(data))
+        await run_supabase(self.supabase.table("lates").insert(data))
         await interaction.followup.send(f"✅ Late recorded for **{day} {meal}** ({house.capitalize()}).", ephemeral=True)
 
     async def late_days_autocomplete(
@@ -174,7 +169,7 @@ class Lates(commands.Cog):
         user_id = str(interaction.user.id)
         try:
             res = await run_supabase(
-                supabase.table("lates").select("day_of_week", "meal", "is_permanent").eq("user_id", user_id),
+                self.supabase.table("lates").select("day_of_week", "meal", "is_permanent").eq("user_id", user_id),
                 timeout=2.5,
             )
         except Exception:
@@ -206,7 +201,7 @@ class Lates(commands.Cog):
             return await interaction.followup.send("❌ Invalid selection.", ephemeral=True)
 
         res = await run_supabase(
-            supabase.table("lates").delete().eq("user_id", user_id).eq("day_of_week", day).eq("meal", meal)
+            self.supabase.table("lates").delete().eq("user_id", user_id).eq("day_of_week", day).eq("meal", meal)
         )
 
         if res.data:
@@ -223,7 +218,7 @@ class Lates(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         user_id = str(interaction.user.id)
-        res = await run_supabase(supabase.table("lates").select("*").eq("user_id", user_id))
+        res = await run_supabase(self.supabase.table("lates").select("*").eq("user_id", user_id))
 
         if not res.data:
             return await interaction.followup.send("You don't have any active lates.", ephemeral=True)
