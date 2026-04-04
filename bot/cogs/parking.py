@@ -417,8 +417,7 @@ class Parking(commands.Cog):
             value=(
                 "`/parking_status` - View all currently available and reserved spots.\n"
                 "`/my_parking` - View your active offers and reservations.\n"
-                "`/cancel [spot]` - Cancel your reservation or withdraw your offer.\n"
-                "   *Leave [spot] blank to cancel Staff reservations.*"
+                "`/cancel [spot]` - Cancel your reservation or withdraw your offer."
             ),
             inline=False,
         )
@@ -427,7 +426,9 @@ class Parking(commands.Cog):
             value=(
                 f"**Guest Spot(s): {guest_list_str}**\n"
                 "Always available to claim up to 7 days in advance.\n\n"
-                "**Resident Spots (1-33, 41-45):** Must be offered by the owner first.\n\n"
+                "**All parking spots are 1-33 and 41-46.**\n"
+                "Spots currently marked as guest spots can be claimed directly.\n"
+                "Any spot not marked as a guest spot must be offered by the owner first.\n\n"
                 "`/offer_spot` - Owners list their spot for others to use.\n"
                 "`/claim_spot` - Reserve an offered resident spot or the guest spot.\n"
                 "   *Note: Claims must be between 2 hours and 7 days long.* "

@@ -313,6 +313,9 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         embed = interaction.followup.send.await_args.kwargs["embed"]
         self.assertEqual(embed.title, "🚗 Parking System Guide")
         self.assertIn("Guest Spot(s): 46", embed.fields[1].value)
+        self.assertIn("All parking spots are 1-33 and 41-46.", embed.fields[1].value)
+        self.assertNotIn("Resident Spots (1-33, 41-45)", embed.fields[1].value)
+        self.assertNotIn("Leave [spot] blank", embed.fields[0].value)
 
 
 class ParkingServiceTests(unittest.TestCase):
@@ -472,3 +475,4 @@ class ParkingServiceTests(unittest.TestCase):
         self.assertEqual(pings, [])
         remaining_ids = [row["id"] for row in store["parking_offers"]]
         self.assertEqual(remaining_ids, ["offer-2", "offer-3"])
+
