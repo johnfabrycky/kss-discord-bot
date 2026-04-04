@@ -6,6 +6,8 @@ from unittest.mock import AsyncMock, patch
 import discord
 
 from bot.cogs import meals as meals_module
+from bot.config import MEAL_CALENDAR
+from bot.utils.constants import LOCAL_TZ
 
 
 def make_interaction():
@@ -35,26 +37,31 @@ class MealsCogTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(meal, "Tacos")
 
     def test_is_uiuc_break_returns_break_label_inside_break_window(self):
-        current_date = datetime(2026, 3, 16, tzinfo=meals_module.local_tz)
+        current_date = datetime(2026, 3, 16, tzinfo=LOCAL_TZ)
 
-        self.assertEqual(self.cog.is_uiuc_break(current_date), "Spring Break 🌸")
+        self.assertEqual(self.cog.is_uiuc_break(current_date), MEAL_CALENDAR.breaks[0].name)
+
+    def test_get_rotation_week_applies_configured_break_offset(self):
+        current_date = datetime(2026, 3, 30, 12, 0, tzinfo=LOCAL_TZ)
+
+        self.assertEqual(self.cog.get_rotation_week(current_date), 2)
 
     @patch("bot.cogs.meals.datetime")
     async def test_today_returns_break_message_during_break(self, datetime_mock):
-        datetime_mock.now.return_value = datetime(2026, 3, 16, 12, 0, tzinfo=meals_module.local_tz)
+        datetime_mock.now.return_value = datetime(2026, 3, 16, 12, 0, tzinfo=LOCAL_TZ)
         datetime_mock.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
         interaction = make_interaction()
 
         await meals_module.Meals.today.callback(self.cog, interaction)
 
         interaction.response.send_message.assert_awaited_once_with(
-            "🏝️ **Enjoy your Spring Break 🌸!** No meals scheduled.",
+            f"🏝️ **Enjoy your {MEAL_CALENDAR.breaks[0].name}!** No meals scheduled.",
             ephemeral=True,
         )
 
     @patch("bot.cogs.meals.datetime")
     async def test_today_builds_embed_from_cached_meals(self, datetime_mock):
-        datetime_mock.now.return_value = datetime(2026, 2, 2, 12, 0, tzinfo=meals_module.local_tz)
+        datetime_mock.now.return_value = datetime(2026, 2, 2, 12, 0, tzinfo=LOCAL_TZ)
         datetime_mock.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
         interaction = make_interaction()
 
