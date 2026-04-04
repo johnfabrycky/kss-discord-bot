@@ -29,7 +29,12 @@ def make_query(result):
     query = MagicMock()
     query.select.return_value = query
     query.eq.return_value = query
+    query.in_.return_value = query
+    query.lt.return_value = query
+    query.lte.return_value = query
     query.gt.return_value = query
+    query.gte.return_value = query
+    query.insert.return_value = query
     query.execute.return_value = SimpleNamespace(data=result)
     return query
 
@@ -218,6 +223,44 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Spot 46", embed.fields[0].value)
         self.assertIn("Free", embed.fields[1].value)
 
+    async def test_parking_status_shows_staff_closed_during_blackout(self):
+        interaction = make_interaction()
+        fixed_now = datetime(2026, 4, 6, 16, 0, tzinfo=parking_module.LOCAL_TZ)
+        self.service.get_parking_data.return_value = ([], [], [])
+        self.service.is_blackout.return_value = True
+
+        with patch("bot.cogs.parking.datetime", wraps=datetime) as datetime_mock:
+            datetime_mock.now.return_value = fixed_now
+
+            await parking_module.Parking.parking_status.callback(self.cog, interaction)
+
+        embed = interaction.response.send_message.await_args.kwargs["embed"]
+        self.assertIn("Closed", embed.fields[1].value)
+        self.assertIn("Blackout", embed.fields[1].value)
+
+    async def test_parking_status_shows_no_staff_spots_when_both_are_claimed(self):
+        interaction = make_interaction()
+        fixed_now = datetime(2026, 4, 6, 18, 0, tzinfo=parking_module.LOCAL_TZ)
+        active_start = "2026-04-06T17:00:00-05:00"
+        active_end = "2026-04-06T20:00:00-05:00"
+        self.service.get_parking_data.return_value = (
+            [],
+            [
+                {"spot_number": 998, "start_time": active_start, "end_time": active_end},
+                {"spot_number": 999, "start_time": active_start, "end_time": active_end},
+            ],
+            [],
+        )
+        self.service.is_blackout.return_value = False
+
+        with patch("bot.cogs.parking.datetime", wraps=datetime) as datetime_mock:
+            datetime_mock.now.return_value = fixed_now
+
+            await parking_module.Parking.parking_status.callback(self.cog, interaction)
+
+        embed = interaction.response.send_message.await_args.kwargs["embed"]
+        self.assertIn("0/2 Free", embed.fields[1].value)
+
     async def test_cancel_rejects_manual_text(self):
         interaction = make_interaction()
 
@@ -317,6 +360,69 @@ class ParkingServiceTests(unittest.TestCase):
             message,
             "📢 **Spot 27** listed\nStart: Thu Apr 2 at 4:00 PM\nEnd: Sun Apr 5 at 12:00 PM",
         )
+
+    @patch("bot.services.parking_service.create_client")
+    def test_claim_staff_spot_rejects_blackout_window(self, create_client_mock):
+        create_client_mock.return_value = MagicMock()
+        service = ParkingService()
+        service.supabase = MagicMock()
+        start = datetime(2026, 4, 6, 16, 0, tzinfo=parking_module.LOCAL_TZ)
+        end = datetime(2026, 4, 6, 18, 0, tzinfo=parking_module.LOCAL_TZ)
+
+        success, message = asyncio.run(service.claim_staff_spot(1234, start, end))
+
+        self.assertFalse(success)
+        self.assertIn("Blackout", message)
+        service.supabase.table.assert_not_called()
+
+    @patch("bot.services.parking_service.create_client")
+    def test_claim_staff_spot_uses_second_staff_spot_when_first_is_overlapping(self, create_client_mock):
+        create_client_mock.return_value = MagicMock()
+        service = ParkingService()
+        query = make_query([{"spot_number": 998}])
+        query.execute.side_effect = [SimpleNamespace(data=[{"spot_number": 998}]), SimpleNamespace(data=[{"id": 1}])]
+        service.supabase = MagicMock()
+        service.supabase.table.return_value = query
+        start = datetime(2026, 4, 6, 18, 0, tzinfo=parking_module.LOCAL_TZ)
+        end = datetime(2026, 4, 6, 20, 0, tzinfo=parking_module.LOCAL_TZ)
+
+        success, message = asyncio.run(service.claim_staff_spot(1234, start, end))
+
+        self.assertTrue(success)
+        self.assertIn("Staff Spot reserved", message)
+        query.insert.assert_called_once_with(
+            {
+                "spot_number": 999,
+                "claimer_id": "1234",
+                "start_time": start.isoformat(),
+                "end_time": end.isoformat(),
+            }
+        )
+
+    @patch("bot.services.parking_service.create_client")
+    def test_claim_staff_spot_rejects_overlapping_claim_when_both_staff_spots_are_taken(self, create_client_mock):
+        create_client_mock.return_value = MagicMock()
+        service = ParkingService()
+        query = make_query([{"spot_number": 998}, {"spot_number": 999}])
+        service.supabase = MagicMock()
+        service.supabase.table.return_value = query
+        start = datetime(2026, 4, 6, 18, 0, tzinfo=parking_module.LOCAL_TZ)
+        end = datetime(2026, 4, 6, 20, 0, tzinfo=parking_module.LOCAL_TZ)
+
+        success, message = asyncio.run(service.claim_staff_spot(1234, start, end))
+
+        self.assertFalse(success)
+        self.assertIn("full", message.lower())
+        query.insert.assert_not_called()
+
+    @patch("bot.services.parking_service.create_client")
+    def test_is_blackout_detects_sunday_morning_blackout_hours(self, create_client_mock):
+        create_client_mock.return_value = MagicMock()
+        service = ParkingService()
+        start = datetime(2026, 4, 5, 9, 0, tzinfo=parking_module.LOCAL_TZ)
+        end = datetime(2026, 4, 5, 11, 0, tzinfo=parking_module.LOCAL_TZ)
+
+        self.assertTrue(service.is_blackout(start, end))
 
     @patch("bot.services.parking_service.create_client")
     @patch("bot.services.parking_service.datetime")
