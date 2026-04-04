@@ -1,21 +1,15 @@
-import asyncio
 import logging
-import os
 from datetime import datetime, time
 
-import aiohttp
 import discord
 import pytz
 from discord import app_commands
 from discord.ext import commands, tasks
 
+from bot.services.lates_service import LatesService
+
 local_tz = pytz.timezone("America/Chicago")
 logger = logging.getLogger(__name__)
-
-
-async def run_supabase(query, timeout=10):
-    """Execute a blocking Supabase query off the event loop."""
-    return await asyncio.wait_for(asyncio.to_thread(query.execute), timeout=timeout)
 
 
 class Lates(commands.Cog):
@@ -24,21 +18,14 @@ class Lates(commands.Cog):
     def __init__(self, bot):
         """Initialize the cog and start the nightly cleanup loop."""
         self.bot = bot
-        self.supabase = bot.supabase
+        self.service = LatesService(bot.supabase)
         self.days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         self.meals = ["Lunch", "Dinner"]
         self.cleanup_loop.start()
 
     def _get_user_house(self, member: discord.Member):
         """Return the caller's house role slug, if present."""
-        role_names = [role.name.lower() for role in member.roles]
-        if "koinonian" in role_names:
-            return "koinonian"
-        if "stratfordite" in role_names:
-            return "stratfordite"
-        if "suttonite" in role_names:
-            return "suttonite"
-        return None
+        return self.service.get_user_house(member)
 
     @tasks.loop(time=time(hour=0, minute=0, tzinfo=local_tz))
     async def cleanup_loop(self):
@@ -53,26 +40,11 @@ class Lates(commands.Cog):
 
     async def perform_cleanup(self, day_to_clean: str = None):
         """Delete temporary lates for a specific day or for all days."""
-        try:
-            query = self.supabase.table("lates").delete().eq("is_permanent", False)
-            if day_to_clean:
-                query = query.eq("day_of_week", day_to_clean)
-
-            res = await run_supabase(query, timeout=20)
-            count = len(res.data) if res.data else 0
-            scope = day_to_clean if day_to_clean else "ALL"
+        count = await self.service.perform_cleanup(day_to_clean)
+        scope = day_to_clean if day_to_clean else "ALL"
+        if count is not None:
             print(f"🧹 Cleanup Complete: Removed {count} temp lates for {scope}.", flush=True)
-
-            ping_url = os.getenv("HEALTHCHECK_URL")
-            if ping_url:
-                async with aiohttp.ClientSession() as session:
-                    await session.get(ping_url)
-                    print("Successfully pinged Healthchecks.io")
-
-            return count
-        except Exception:
-            logger.exception("Late cleanup failed", extra={"day_to_clean": day_to_clean})
-            return None
+        return count
 
     @commands.command(name="force_cleanup")
     @commands.has_permissions(administrator=True)
@@ -100,13 +72,8 @@ class Lates(commands.Cog):
         if not house:
             return await interaction.followup.send("❌ No house role detected.", ephemeral=True)
 
-        target_roles = ["koinonian"] if house == "koinonian" else ["stratfordite", "suttonite"]
-        res = await run_supabase(
-            self.supabase.table("lates").select("*").eq("day_of_week", day).eq("meal", meal).in_("role", target_roles)
-        )
-
         filtered_list = []
-        for info in res.data:
+        for info in await self.service.get_visible_lates(house, day, meal):
             status = "🔄" if info["is_permanent"] else "⏱️"
             filtered_list.append(f"{status} **{info['nickname']}**")
 
@@ -140,24 +107,17 @@ class Lates(commands.Cog):
         if not house:
             return await interaction.followup.send("❌ You must have a house role to use this.", ephemeral=True)
 
-        user_id = str(interaction.user.id)
-        is_permanent = duration == "True"
-
-        existing = await run_supabase(
-            self.supabase.table("lates").select("*").eq("user_id", user_id).eq("day_of_week", day).eq("meal", meal)
+        success, _result = await self.service.create_late(
+            interaction.user.id,
+            interaction.user.display_name,
+            house,
+            day,
+            meal,
+            duration == "True",
         )
-        if existing.data:
+        if not success:
             return await interaction.followup.send("❌ You already have a late for this meal.", ephemeral=True)
 
-        data = {
-            "user_id": user_id,
-            "nickname": interaction.user.display_name,
-            "role": house,
-            "meal": meal,
-            "day_of_week": day,
-            "is_permanent": is_permanent,
-        }
-        await run_supabase(self.supabase.table("lates").insert(data))
         await interaction.followup.send(f"✅ Late recorded for **{day} {meal}** ({house.capitalize()}).", ephemeral=True)
 
     async def late_days_autocomplete(
@@ -166,18 +126,14 @@ class Lates(commands.Cog):
             current: str,
     ) -> list[app_commands.Choice[str]]:
         """Return the caller's existing lates as autocomplete choices."""
-        user_id = str(interaction.user.id)
         try:
-            res = await run_supabase(
-                self.supabase.table("lates").select("day_of_week", "meal", "is_permanent").eq("user_id", user_id),
-                timeout=2.5,
-            )
+            rows = await self.service.get_autocomplete_lates(interaction.user.id)
         except Exception:
-            logger.exception("Late autocomplete failed", extra={"user_id": user_id, "current": current})
+            logger.exception("Late autocomplete failed", extra={"user_id": str(interaction.user.id), "current": current})
             return []
 
         choices = []
-        for row in res.data:
+        for row in rows:
             day = row["day_of_week"]
             meal = row["meal"]
             freq = "permanent" if row["is_permanent"] else "temporary"
@@ -200,11 +156,7 @@ class Lates(commands.Cog):
         except ValueError:
             return await interaction.followup.send("❌ Invalid selection.", ephemeral=True)
 
-        res = await run_supabase(
-            self.supabase.table("lates").delete().eq("user_id", user_id).eq("day_of_week", day).eq("meal", meal)
-        )
-
-        if res.data:
+        if await self.service.clear_late(user_id, day, meal):
             await interaction.followup.send(f"🗑️ Your {day} {meal} late has been cleared.", ephemeral=True)
         else:
             await interaction.followup.send(
@@ -217,15 +169,13 @@ class Lates(commands.Cog):
         """List every currently active late request owned by the caller."""
         await interaction.response.defer(ephemeral=True)
 
-        user_id = str(interaction.user.id)
-        res = await run_supabase(self.supabase.table("lates").select("*").eq("user_id", user_id))
-
-        if not res.data:
+        rows = await self.service.get_user_lates(interaction.user.id)
+        if not rows:
             return await interaction.followup.send("You don't have any active lates.", ephemeral=True)
 
         found_lates = [
             f"• **{row['day_of_week']} {row['meal']}**: {'🔄 Permanent' if row['is_permanent'] else '⏱️ This week'}"
-            for row in res.data
+            for row in rows
         ]
         embed = discord.Embed(
             title="📋 Your Registered Lates",
