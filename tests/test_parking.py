@@ -271,7 +271,7 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
 
             await parking_module.Parking.parking_status.callback(self.cog, interaction)
 
-        embed = interaction.response.send_message.await_args.kwargs["embed"]
+        embed = interaction.followup.send.await_args.kwargs["embed"]
         self.assertIn("Closed", embed.fields[1].value)
         self.assertIn("Blackout", embed.fields[1].value)
 
@@ -295,7 +295,7 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
 
             await parking_module.Parking.parking_status.callback(self.cog, interaction)
 
-        embed = interaction.response.send_message.await_args.kwargs["embed"]
+        embed = interaction.followup.send.await_args.kwargs["embed"]
         self.assertIn("0/2 Free", embed.fields[1].value)
 
     async def test_cancel_rejects_manual_text(self):

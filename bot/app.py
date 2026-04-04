@@ -1,5 +1,6 @@
 """Bot application setup, command registration, and startup hooks."""
 
+import logging
 import os
 
 import discord
@@ -8,8 +9,11 @@ from dotenv import load_dotenv
 from supabase import create_client
 
 from bot.config import GUILD_ID, INITIAL_EXTENSIONS, MY_GUILD
+from bot.utils.discord_http_logging import install_discord_http_rate_limit_logging
 
 load_dotenv()
+logger = logging.getLogger(__name__)
+install_discord_http_rate_limit_logging()
 
 
 class Bot(commands.Bot):
