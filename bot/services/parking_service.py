@@ -301,7 +301,11 @@ class ParkingService:
                 "offer_id": offer_id,
             }
         ).execute()
-        return True, f"✅ **Spot {spot}** reserved!"
+
+        start_label = self._format_datetime_label(start)
+        end_label = self._format_datetime_label(end)
+
+        return True, f"✅ **Spot {spot}** reserved!\nStart: {start_label}\nEnd: {end_label}"
 
     async def claim_resident_spot(self, user_id, username, spot, start, end):
         """Reserve a guest spot or a resident spot covered by an existing offer."""
@@ -343,7 +347,11 @@ class ParkingService:
                 "end_time": end.isoformat(),
             }
         ).execute()
-        return True, f"✅ Staff Spot reserved ({start.strftime('%a %I%p')})."
+
+        start_label = self._format_datetime_label(start)
+        end_label = self._format_datetime_label(end)
+
+        return True, f"✅ Staff Spot reserved!\nStart: {start_label}\nEnd: {end_label}"
 
     async def claim_staff_spot(self, user_id, username, start, end):
         """Assign the first available staff spot for a requested window."""
