@@ -147,7 +147,14 @@ class Parking(commands.Cog):
         await interaction.response.defer(ephemeral=True)
         success, msg = await self.service.create_offers(interaction.user.id, interaction.user.name, spot, start, end,
                                                         weeks)
-        await interaction.followup.send(msg, ephemeral=not success)
+
+        if not success:
+            await interaction.followup.send(msg)
+            return None
+
+        await interaction.channel.send(f"<@{interaction.user.id}> offered spot {spot}!\n{msg}")
+
+        await interaction.delete_original_response()
         return None
 
     async def claim_spot_autocomplete(

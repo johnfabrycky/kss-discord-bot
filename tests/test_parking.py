@@ -21,6 +21,7 @@ def make_interaction(user_id=1234, username="TestUser"):
         ),
         followup=SimpleNamespace(send=AsyncMock()),
         channel=SimpleNamespace(send=AsyncMock()),
+        delete_original_response=AsyncMock(),
     )
 
 
@@ -102,8 +103,8 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
 
         interaction.response.defer.assert_awaited_once_with(ephemeral=True)
         # Updated to include username parameter
-        self.service.create_offers.assert_awaited_once_with(1234, "TestUser", 10, start, end, 2)
-        interaction.followup.send.assert_awaited_once_with("created", ephemeral=False)
+        interaction.channel.send.assert_awaited_once_with("<@1234> offered spot 10!\ncreated")
+        interaction.delete_original_response.assert_awaited_once()
 
     async def test_claim_spot_rejects_duration_outside_limits(self):
         interaction = make_interaction()
