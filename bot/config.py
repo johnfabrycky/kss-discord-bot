@@ -1,5 +1,6 @@
 """Central runtime configuration for the Discord bot."""
 from pathlib import Path
+
 import discord
 
 BASE_DIR = Path(__file__).resolve().parent.parent
