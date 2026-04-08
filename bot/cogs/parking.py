@@ -250,8 +250,8 @@ class Parking(commands.Cog):
 
         start, end, duration = self.service.parse_range(start_day.value, start_time.value, end_day.value,
                                                         end_time.value)
-        if duration < timedelta(hours=2) or duration > timedelta(days=7):
-            return await interaction.response.send_message("❌ Must be between 2h and 7d.", ephemeral=True)
+        if duration < timedelta(hours=1) or duration > timedelta(days=3):
+            return await interaction.response.send_message("❌ Must be between 1 hour and 3 days.", ephemeral=True)
 
         # 1. Defer privately. Any errors from here out will be hidden.
         await interaction.response.defer(ephemeral=True)
@@ -501,7 +501,7 @@ class Parking(commands.Cog):
                 "Any spot not marked as a guest spot must be offered by the owner first.\n\n"
                 "`/offer_spot` - Owners list their spot for others to use.\n"
                 "`/claim_spot` - Reserve an offered resident spot or the guest spot.\n"
-                "   *Note: Claims must be between 2 hours and 7 days long.* "
+                "   *Note: Claims must be between 1 hours and 3 days long.* "
             ),
             inline=False,
         )
