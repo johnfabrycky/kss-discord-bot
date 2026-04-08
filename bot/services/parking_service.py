@@ -21,7 +21,7 @@ class ParkingService:
     """Database-backed business logic for the parking system."""
 
     AUTOCOMPLETE_CACHE_TTL_SECONDS = 5
-    AUTOCOMPLETE_TIMEOUT_SECONDS = 1.25
+    AUTOCOMPLETE_TIMEOUT_SECONDS = 2
 
     def __init__(self, supabase=None):
         """Use the shared Supabase client, falling back to direct creation when needed."""
@@ -32,6 +32,9 @@ class ParkingService:
         self.supabase = supabase
         self._claim_autocomplete_cache = None
         self._cancel_autocomplete_cache = {}
+
+        # In-memory cache for guest spots loaded on startup
+        self.guest_spots_cache = set()
 
     @staticmethod
     def _build_log_context(log_context=None, **extra_fields):
@@ -141,14 +144,36 @@ class ParkingService:
         am_pm = "AM" if value.hour < 12 else "PM"
         return f"{value.strftime('%a %b')} {value.day} at {hour}:{value.strftime('%M')} {am_pm}"
 
+    def _load_cache_sync(self):
+        """Fetch the current guest spots from the DB to populate the cache."""
+        response = self.supabase.table("parking_spots").select("spot_number").eq("is_guest", True).execute()
+        self.guest_spots_cache = {row["spot_number"] for row in response.data}
+
+    async def load_cache(self):
+        """Load mostly-static data into memory to reduce database hits."""
+        try:
+            await self._run_blocking(self._load_cache_sync, log_context={"operation": "load_cache"})
+            logger.info(f"Loaded {len(self.guest_spots_cache)} guest spots into cache.")
+        except Exception:
+            logger.exception("Failed to load parking spot cache.")
+
     def _initialize_spots_sync(self):
+        # Fetch existing spots so we don't accidentally wipe is_guest status during upsert
+        existing_spots_response = self.supabase.table("parking_spots").select("spot_number, is_guest").execute()
+        existing_guest_spots = {
+            row["spot_number"] for row in existing_spots_response.data if row.get("is_guest")
+        }
+
+        # Update the local cache while we have the fresh data
+        self.guest_spots_cache = existing_guest_spots
+
         all_configs = []
         for spot in VALID_SPOTS:
             all_configs.append(
                 {
                     "spot_number": spot,
                     "spot_type": "resident",
-                    "is_guest": spot in GUEST_SPOTS,
+                    "is_guest": spot in existing_guest_spots,
                 }
             )
 
@@ -196,8 +221,8 @@ class ParkingService:
             .lt("start_time", cutoff.isoformat())
             .execute()
         )
-        guests = self.supabase.table("parking_spots").select("spot_number").eq("is_guest", True).execute()
-        return offers.data, claims.data, [row["spot_number"] for row in guests.data]
+        # Using the cache instead of a database round trip
+        return offers.data, claims.data, list(self.guest_spots_cache)
 
     async def get_parking_data(self, now, cutoff):
         """Fetch all raw parking data needed to build the status view."""
@@ -278,7 +303,8 @@ class ParkingService:
             return False, f"❌ Spot {spot} is already reserved."
 
         offer_id = None
-        if spot not in GUEST_SPOTS:
+        # Checking memory cache instead of querying Supabase
+        if spot not in self.guest_spots_cache:
             offer = (
                 self.supabase.table("parking_offers")
                 .select("id")
@@ -497,7 +523,9 @@ class ParkingService:
             .gt("end_time", now_iso)
             .execute()
         )
-        guest_spots = [{"spot_number": spot} for spot in GUEST_SPOTS]
+
+        # Build payload directly from cache
+        guest_spots = [{"spot_number": spot} for spot in self.guest_spots_cache]
         return guest_spots, offers.data, claims.data
 
     async def get_claim_autocomplete_data(self, now):
@@ -518,20 +546,12 @@ class ParkingService:
         except Exception:
             return [], [], []
 
-    def _get_guest_spot_list_sync(self):
-        response = self.supabase.table("parking_spots").select("spot_number").eq("is_guest", True).execute()
-        guest_spots = [str(row["spot_number"]) for row in response.data]
-        return ", ".join(guest_spots) if guest_spots else "None"
-
     async def get_guest_spot_list(self) -> str:
-        """Fetch guest spot numbers and return a formatted string."""
-        try:
-            return await self._run_blocking(
-                self._get_guest_spot_list_sync,
-                log_context={"operation": "get_guest_spot_list"},
-            )
-        except Exception:
-            return "Error loading spots"
+        """Return the formatted string directly from the local cache."""
+        if not self.guest_spots_cache:
+            return "None"
+        # Sort them numerically/alphabetically before joining for cleaner display
+        return ", ".join(map(str, sorted(self.guest_spots_cache)))
 
     def get_merged_availability(self, now, cutoff, raw_offers, raw_claims, is_guest=False):
         """Merge offer windows, subtract claims, and return a status header plus free blocks."""
