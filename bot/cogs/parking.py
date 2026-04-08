@@ -8,7 +8,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from bot.config import LOCAL_TZ, STAFF_SPOTS, VALID_SPOTS
+from bot.config import LOCAL_TZ, STAFF_SPOTS, VALID_SPOTS, MINIMUM_RESERVATION_HOURS, MAXIMUM_RESERVATION_DAYS, MINIMUM_OFFER_HOURS
 from bot.services.parking_service import ParkingService
 from bot.utils.constants import WEEKDAYS
 
@@ -143,7 +143,7 @@ class Parking(commands.Cog):
         start, end, duration = self.service.parse_range(start_day.value, start_time.value, end_day.value,
                                                         end_time.value)
         if duration < timedelta(hours=2):
-            return await interaction.response.send_message("❌ Offers must be at least 2 hours.", ephemeral=True)
+            return await interaction.response.send_message(f"❌ Offers must be at least {MINIMUM_OFFER_HOURS} hours.", ephemeral=True)
 
         await interaction.response.defer(ephemeral=True)
         success, msg = await self.service.create_offers(interaction.user.id, interaction.user.name, spot, start, end,
@@ -251,7 +251,7 @@ class Parking(commands.Cog):
         start, end, duration = self.service.parse_range(start_day.value, start_time.value, end_day.value,
                                                         end_time.value)
         if duration < timedelta(hours=1) or duration > timedelta(days=3):
-            return await interaction.response.send_message("❌ Must be between 1 hour and 3 days.", ephemeral=True)
+            return await interaction.response.send_message(f"❌ Must be between {MINIMUM_RESERVATION_HOURS} hour and {MAXIMUM_RESERVATION_DAYS} days.", ephemeral=True)
 
         # 1. Defer privately. Any errors from here out will be hidden.
         await interaction.response.defer(ephemeral=True)
@@ -501,7 +501,7 @@ class Parking(commands.Cog):
                 "Any spot not marked as a guest spot must be offered by the owner first.\n\n"
                 "`/offer_spot` - Owners list their spot for others to use.\n"
                 "`/claim_spot` - Reserve an offered resident spot or the guest spot.\n"
-                "   *Note: Claims must be between 1 hours and 3 days long.* "
+                f"   *Note: Claims must be between {MINIMUM_RESERVATION_HOURS} hours and {MAXIMUM_RESERVATION_DAYS} days long.* "
             ),
             inline=False,
         )
