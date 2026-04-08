@@ -4,8 +4,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from bot.services.meals_service import MealsService
 from bot.config import LOCAL_TZ
+from bot.services.meals_service import MealsService
 
 
 class Meals(commands.Cog):
