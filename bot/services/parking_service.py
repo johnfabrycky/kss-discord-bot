@@ -32,7 +32,6 @@ class ParkingService:
         self.supabase = supabase
         self._claim_autocomplete_cache = None
         self._cancel_autocomplete_cache = {}
-        self._offer_spot_preference_cache = {}
         self._spot_mutation_locks = {}
         self._staff_mutation_lock = asyncio.Lock()
         self._fallback_mutation_lock = asyncio.Lock()
@@ -120,37 +119,6 @@ class ParkingService:
 
         self._cancel_autocomplete_cache[key] = entry
 
-    def _get_offer_spot_preference_sync(self, user_id):
-        """Fetch a caller's saved resident spot preference from Supabase."""
-        response = (
-            self.supabase.table("parking_spots")
-            .select("spot_number")
-            .eq("discord_userid", str(user_id))
-            .execute()
-        )
-        if response.data and response.data[0].get("spot_number") is not None:
-            return int(response.data[0].get("spot_number"))
-        return None
-
-    async def get_offer_spot_preference(self, user_id):
-        """Return a caller's saved offer-spot preference, if one exists."""
-        cache_key = str(user_id)
-        cached = self._get_cached_value(self._offer_spot_preference_cache.get(cache_key))
-        if cached is not None:
-            return cached
-
-        try:
-            spot = await self._run_blocking(
-                self._get_offer_spot_preference_sync,
-                user_id,
-                timeout=self.AUTOCOMPLETE_TIMEOUT_SECONDS,
-                log_context={"operation": "get_offer_spot_preference", "user_id": cache_key},
-            )
-            self._store_cache_value("offer_preference", cache_key, spot)
-            return spot
-        except Exception:
-            return None
-
     def _save_offer_spot_preference_sync(self, user_id, username, spot):
         """Upsert the caller's last used resident spot for future autocomplete."""
         # Clear any existing spot ownership for this user
@@ -181,7 +149,6 @@ class ParkingService:
                 timeout=10,
                 log_context={"operation": "save_offer_spot_preference", "user_id": cache_key, "spot": spot},
             )
-            self._store_cache_value("offer_preference", cache_key, int(spot))
             return True
         except Exception:
             logger.exception(
