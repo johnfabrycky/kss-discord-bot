@@ -60,7 +60,6 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         self.service.get_guest_spot_list = AsyncMock()
         self.service.get_cancel_autocomplete_data = AsyncMock(return_value=([], []))
         self.service.get_claim_autocomplete_data = AsyncMock(return_value=([], [], []))
-        self.service.get_offer_spot_preference = AsyncMock(return_value=None)
         self.service.save_offer_spot_preference = AsyncMock(return_value=True)
         self.service.parse_range = MagicMock()
         self.service.get_merged_availability = MagicMock()
