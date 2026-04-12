@@ -116,18 +116,18 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
 
         choices = await self.cog.offer_spot_autocomplete(interaction, "2")
 
-        self.assertGreaterEqual(len(choices), 1)
+        self.assertEqual(len(choices), 1)
         self.assertEqual(choices[0].value, 27)
         self.assertEqual(choices[0].name, "Spot 27 (saved)")
         self.assertIn(27, [choice.value for choice in choices])
 
-    async def test_offer_spot_autocomplete_filters_valid_spots_when_no_saved_spot(self):
+    async def test_offer_spot_autocomplete_empty_when_no_saved_spot(self):
         interaction = make_interaction()
+        self.service.get_offer_spot_preference.return_value = None
 
         choices = await self.cog.offer_spot_autocomplete(interaction, "46")
 
-        self.assertEqual([choice.value for choice in choices], [46])
-        self.assertEqual([choice.name for choice in choices], ["Spot 46"])
+        self.assertEqual(choices, [])
 
     async def test_claim_spot_rejects_duration_outside_limits(self):
         interaction = make_interaction()

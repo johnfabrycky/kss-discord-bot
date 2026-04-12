@@ -94,31 +94,21 @@ class Parking(commands.Cog):
             interaction: discord.Interaction,
             current: str,
     ) -> list[app_commands.Choice[int]]:
-        """Suggest the caller's saved spot first, followed by matching valid spots."""
+        """Suggest ONLY the caller's saved spot, if one exists."""
         log_context = {"user_id": str(interaction.user.id), "current": current}
 
         try:
             saved_spot = await self.service.get_offer_spot_preference(interaction.user.id)
-            current_normalized = current.strip().lower()
-            seen_spots = set()
             choices = []
 
-            def matches(spot_number):
-                if not current_normalized:
-                    return True
-                return current_normalized in f"spot {spot_number}".lower()
+            if saved_spot is not None and saved_spot in VALID_SPOTS:
+                label = f"Spot {saved_spot} (saved)"
+                current_normalized = current.strip().lower()
+                
+                # Check if it matches what the user is typing
+                if not current_normalized or current_normalized in f"spot {saved_spot}".lower():
+                    choices.append(app_commands.Choice(name=label, value=saved_spot))
 
-            def add_choice(spot_number, label):
-                if spot_number in seen_spots or spot_number not in VALID_SPOTS or not matches(spot_number):
-                    return
-                seen_spots.add(spot_number)
-                choices.append(app_commands.Choice(name=label, value=spot_number))
-
-            if saved_spot is not None:
-                add_choice(saved_spot, f"Spot {saved_spot} (saved)")
-
-            for spot_number in VALID_SPOTS:
-                add_choice(spot_number, f"Spot {spot_number}")
         except Exception:
             logger.exception("Parking offer_spot autocomplete failed", extra=log_context)
             choices = []
