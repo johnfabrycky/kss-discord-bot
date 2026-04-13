@@ -730,4 +730,4 @@ class ParkingService:
         else:
             header = "❌ Not Offered"
 
-        return header, blocks
+        return header, (None if len(blocks) < 2 else blocks)

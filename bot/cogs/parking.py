@@ -360,11 +360,9 @@ class Parking(commands.Cog):
 
                 # If the header already contains the specific end time and there's only one block,
                 # avoid redundant "Free: NEXT..." detail lines.
-                if len(blocks) == 1:
-                    time_str = blocks[0][1].strftime('%a %I%p')
-                    if time_str in header:
-                        lines.append(f"**Spot {spot_num}**: {header}")
-                        continue
+                if blocks is None:
+                    lines.append(f"**Spot {spot_num}**: {header}")
+                    continue
 
                 detail = " | ".join(
                     [
@@ -553,7 +551,7 @@ class Parking(commands.Cog):
             ),
             inline=False,
         )
-        embed.set_footer(text="All times are in America/Chicago (CST/CDT)")
+        embed.set_footer(text="Felipe Parking System - Chicago Time")
         await interaction.followup.send(embed=embed, ephemeral=True)
 
 
