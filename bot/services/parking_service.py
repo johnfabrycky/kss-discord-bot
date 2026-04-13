@@ -515,7 +515,14 @@ class ParkingService:
             self.supabase.table("parking_reservations").delete().eq("offer_id", str(record_id)).execute()
             self.supabase.table("parking_offers").delete().eq("id", str(record_id)).execute()
             pings = list({f"<@{c['claimer_id']}>" for c in claims.data})
-            return True, f"🔄 Spot {offer['spot_number']} offer withdrawn.", pings
+
+            msg = "🔄 "
+            if offer['spot_number'] in STAFF_SPOTS:
+                msg += "Staff Spot "
+            else:
+                msg += f"Spot {offer['spot_number']} "
+            msg += "offer withdrawn."
+            return True, msg, pings
 
         target = (
             self.supabase.table("parking_reservations")
