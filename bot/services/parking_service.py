@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from supabase import create_client
 
-from bot.config import LOCAL_TZ, STAFF_SPOTS, VALID_SPOTS
+from bot.config import LOCAL_TZ, STAFF_SPOTS, VALID_SPOTS, MINIMUM_RESERVATION_HOURS
 
 try:
     import httpx
@@ -707,11 +707,11 @@ class ParkingService:
 
             for claim in relevant_claims:
                 claim_start = max(claim["start"], window_start)
-                if (claim_start - pointer) >= timedelta(hours=2):
+                if (claim_start - pointer) >= timedelta(hours=MINIMUM_RESERVATION_HOURS):
                     blocks.append((pointer, claim_start))
                 pointer = max(pointer, claim["end"])
 
-            if (window_end - pointer) >= timedelta(hours=2):
+            if (window_end - pointer) >= timedelta(hours=MINIMUM_RESERVATION_HOURS):
                 blocks.append((pointer, window_end))
 
         current_claim = next((claim for claim in raw_claims if claim["start"] <= now < claim["end"]), None)
