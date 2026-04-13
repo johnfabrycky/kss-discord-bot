@@ -225,83 +225,72 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
     async def test_parking_status_builds_embed_from_service_data(self):
         interaction = make_interaction()
         tz = parking_module.LOCAL_TZ
-        self.service.get_parking_data.return_value = (
-            [
-                {
-                    "spot_number": 10,
-                    "start_time": "2026-04-06T08:00:00-05:00",
-                    "end_time": "2026-04-06T18:00:00-05:00",
-                }
-            ],
-            [
-                {
-                    "spot_number": 998,
-                    "start_time": "2026-04-06T10:00:00-05:00",
-                    "end_time": "2026-04-06T12:00:00-05:00",
-                }
-            ],
-            [46],
-        )
-        self.service.get_merged_availability.side_effect = [
-            (
-                "🟢 Available Now (until Mon 06PM)",
-                [(datetime(2026, 4, 6, 8, 0, tzinfo=tz), datetime(2026, 4, 6, 18, 0, tzinfo=tz))],
-            ),
-            (
-                "🟢 Available Now (until Thu 12PM)",
-                [(datetime(2026, 4, 6, 8, 0, tzinfo=tz), datetime(2026, 4, 9, 12, 0, tzinfo=tz))],
-            ),
-        ]
-        self.service.is_blackout.return_value = False
+        now = datetime(2026, 4, 6, 10, 0, tzinfo=tz)
+        
+        with patch("bot.cogs.parking.datetime", wraps=datetime) as datetime_mock:
+            datetime_mock.now.return_value = now
+            
+            self.service.get_parking_data.return_value = (
+                [
+                    {
+                        "spot_number": 10,
+                        "start_time": "2026-04-06T08:00:00-05:00",
+                        "end_time": "2026-04-06T18:00:00-05:00",
+                    }
+                ],
+                [
+                    {
+                        "spot_number": 998,
+                        "start_time": "2026-04-06T10:00:00-05:00",
+                        "end_time": "2026-04-06T12:00:00-05:00",
+                    }
+                ],
+                [46],
+            )
+            
+            self.service.get_staff_availability_windows.return_value = [
+                {"start": now.replace(hour=0), "end": now.replace(hour=17)},
+                {"start": now.replace(hour=17), "end": now.replace(hour=23, minute=59)},
+            ]
+            
+            self.service.get_merged_availability.side_effect = [
+                (
+                    "🟢 Available Now (until Mon 06PM)",
+                    [(datetime(2026, 4, 6, 8, 0, tzinfo=tz), datetime(2026, 4, 6, 18, 0, tzinfo=tz))],
+                ),
+                (
+                    "🟢 Available Now (until Thu 12PM)",
+                    [(datetime(2026, 4, 6, 8, 0, tzinfo=tz), datetime(2026, 4, 9, 12, 0, tzinfo=tz))],
+                ),
+                (
+                    "🔴 Busy (Next: Mon 12PM)",
+                    [(now.replace(hour=12), now.replace(hour=17))],
+                ),
+                (
+                    "🟢 Available Now (until Mon 05PM)",
+                    [(now, now.replace(hour=17))],
+                ),
+            ]
 
-        await parking_module.Parking.parking_status.callback(self.cog, interaction)
+            await parking_module.Parking.parking_status.callback(self.cog, interaction)
 
         interaction.response.defer.assert_awaited_once_with(ephemeral=True)
         interaction.followup.send.assert_awaited_once()
         embed = interaction.followup.send.await_args.kwargs["embed"]
         self.assertIsInstance(embed, discord.Embed)
-        self.assertEqual(embed.title, "Parking Status (Next 7 Days)")
+        self.assertEqual(embed.title, "Parking Status")
+        
+        # Resident/Guest assertions
+        self.assertEqual(embed.fields[0].name, "Resident/Guest Spots (Next 7 Days)")
         self.assertIn("Spot 10", embed.fields[0].value)
         self.assertIn("Spot 46", embed.fields[0].value)
-        self.assertIn("Free", embed.fields[1].value)
-
-    async def test_parking_status_shows_staff_closed_during_blackout(self):
-        interaction = make_interaction()
-        fixed_now = datetime(2026, 4, 6, 16, 0, tzinfo=parking_module.LOCAL_TZ)
-        self.service.get_parking_data.return_value = ([], [], [])
-        self.service.is_blackout.return_value = True
-
-        with patch("bot.cogs.parking.datetime", wraps=datetime) as datetime_mock:
-            datetime_mock.now.return_value = fixed_now
-
-            await parking_module.Parking.parking_status.callback(self.cog, interaction)
-
-        embed = interaction.followup.send.await_args.kwargs["embed"]
-        self.assertIn("Closed", embed.fields[1].value)
-        self.assertIn("Blackout", embed.fields[1].value)
-
-    async def test_parking_status_shows_no_staff_spots_when_both_are_claimed(self):
-        interaction = make_interaction()
-        fixed_now = datetime(2026, 4, 6, 18, 0, tzinfo=parking_module.LOCAL_TZ)
-        active_start = "2026-04-06T17:00:00-05:00"
-        active_end = "2026-04-06T20:00:00-05:00"
-        self.service.get_parking_data.return_value = (
-            [],
-            [
-                {"spot_number": 998, "start_time": active_start, "end_time": active_end},
-                {"spot_number": 999, "start_time": active_start, "end_time": active_end},
-            ],
-            [],
-        )
-        self.service.is_blackout.return_value = False
-
-        with patch("bot.cogs.parking.datetime", wraps=datetime) as datetime_mock:
-            datetime_mock.now.return_value = fixed_now
-
-            await parking_module.Parking.parking_status.callback(self.cog, interaction)
-
-        embed = interaction.followup.send.await_args.kwargs["embed"]
-        self.assertIn("0/2 Free", embed.fields[1].value)
+        
+        # Staff assertions
+        self.assertEqual(embed.fields[1].name, "Staff Parking (Today)")
+        self.assertIn("**Staff Spot 1**: 🔴 Busy (Next: Mon 12PM)", embed.fields[1].value)
+        self.assertIn("**Staff Spot 2**: 🟢 Available Now (until Mon 05PM)", embed.fields[1].value)
+        self.assertNotIn("998", embed.fields[1].value)
+        self.assertNotIn("999", embed.fields[1].value)
 
     async def test_cancel_rejects_manual_text(self):
         interaction = make_interaction()
