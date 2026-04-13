@@ -8,7 +8,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from bot.config import LOCAL_TZ, STAFF_SPOTS, VALID_SPOTS, MINIMUM_RESERVATION_HOURS, MAXIMUM_RESERVATION_DAYS, MINIMUM_OFFER_HOURS
+from bot.config import LOCAL_TZ, STAFF_SPOTS, VALID_SPOTS, MINIMUM_RESERVATION_HOURS, MAXIMUM_RESERVATION_DAYS, \
+    MINIMUM_OFFER_HOURS
 from bot.services.parking_service import ParkingService
 from bot.utils.constants import WEEKDAYS
 
@@ -143,7 +144,8 @@ class Parking(commands.Cog):
         start, end, duration = self.service.parse_range(start_day.value, start_time.value, end_day.value,
                                                         end_time.value)
         if duration < timedelta(hours=MINIMUM_OFFER_HOURS):
-            return await interaction.response.send_message(f"❌ Offers must be at least {MINIMUM_OFFER_HOURS} hours.", ephemeral=True)
+            return await interaction.response.send_message(f"❌ Offers must be at least {MINIMUM_OFFER_HOURS} hours.",
+                                                           ephemeral=True)
 
         await interaction.response.defer(ephemeral=True)
         success, msg = await self.service.create_offers(interaction.user.id, interaction.user.name, spot, start, end,
@@ -252,7 +254,9 @@ class Parking(commands.Cog):
         start, end, duration = self.service.parse_range(start_day.value, start_time.value, end_day.value,
                                                         end_time.value)
         if duration < timedelta(hours=1) or duration > timedelta(days=3):
-            return await interaction.response.send_message(f"❌ Must be between {MINIMUM_RESERVATION_HOURS} hour and {MAXIMUM_RESERVATION_DAYS} days.", ephemeral=True)
+            return await interaction.response.send_message(
+                f"❌ Must be between {MINIMUM_RESERVATION_HOURS} hour and {MAXIMUM_RESERVATION_DAYS} days.",
+                ephemeral=True)
 
         # 1. Defer privately. Any errors from here out will be hidden.
         await interaction.response.defer(ephemeral=True)
@@ -348,7 +352,8 @@ class Parking(commands.Cog):
                 spot_claims = sorted(claims_db.get(spot_num, []), key=lambda x: x["start"])
                 is_guest = spot_num in guest_spots
 
-                header, blocks = self.service.get_merged_availability(now, resident_cutoff, spot_offers, spot_claims, is_guest)
+                header, blocks = self.service.get_merged_availability(now, resident_cutoff, spot_offers, spot_claims,
+                                                                      is_guest)
                 detail = " | ".join(
                     [
                         f"{'NOW' if block[0] <= now < block[1] else 'NEXT'} "
@@ -360,14 +365,16 @@ class Parking(commands.Cog):
 
             # Determine staff cutoff (2 AM for Fri/Sat, 12 AM otherwise)
             is_weekend = now.weekday() in {4, 5}
-            staff_cutoff = now.replace(hour=2, minute=0) + timedelta(days=1) if is_weekend else now.replace(hour=0, minute=0) + timedelta(days=1)
+            staff_cutoff = now.replace(hour=2, minute=0) + timedelta(days=1) if is_weekend else now.replace(hour=0,
+                                                                                                            minute=0) + timedelta(
+                days=1)
 
             staff_lines = []
             staff_offers = self.service.get_staff_availability_windows(now, staff_cutoff)
             for i, spot_num in enumerate(STAFF_SPOTS):
                 spot_claims = sorted(claims_db.get(spot_num, []), key=lambda x: x["start"])
                 header, blocks = self.service.get_merged_availability(now, staff_cutoff, staff_offers, spot_claims)
-                
+
                 if not blocks:
                     staff_lines.append(f"**Spot {i + 1}**: ❌ Fully Booked")
                     continue

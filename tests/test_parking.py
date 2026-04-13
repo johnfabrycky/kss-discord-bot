@@ -7,9 +7,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import discord
 
 from bot.cogs import parking as parking_module
-from bot.services.parking_service import ParkingService
-from bot.config import MINIMUM_RESERVATION_HOURS
 from bot.config import MAXIMUM_RESERVATION_DAYS
+from bot.config import MINIMUM_RESERVATION_HOURS
+from bot.services.parking_service import ParkingService
 
 
 def make_interaction(user_id=1234, username="TestUser"):
@@ -125,7 +125,8 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
             10,
         )
 
-        interaction.response.send_message.assert_awaited_once_with(f"❌ Must be between {MINIMUM_RESERVATION_HOURS} hour and {MAXIMUM_RESERVATION_DAYS} days.", ephemeral=True)
+        interaction.response.send_message.assert_awaited_once_with(
+            f"❌ Must be between {MINIMUM_RESERVATION_HOURS} hour and {MAXIMUM_RESERVATION_DAYS} days.", ephemeral=True)
 
     async def test_claim_spot_autocomplete_filters_to_window_compatible_spots(self):
         start = datetime.fromisoformat("2026-04-02T16:00:00-05:00")
@@ -226,10 +227,10 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         interaction = make_interaction()
         tz = parking_module.LOCAL_TZ
         now = datetime(2026, 4, 6, 10, 0, tzinfo=tz)
-        
+
         with patch("bot.cogs.parking.datetime", wraps=datetime) as datetime_mock:
             datetime_mock.now.return_value = now
-            
+
             self.service.get_parking_data.return_value = (
                 [
                     {
@@ -247,12 +248,12 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
                 ],
                 [46],
             )
-            
+
             self.service.get_staff_availability_windows.return_value = [
                 {"start": now.replace(hour=0), "end": now.replace(hour=17)},
                 {"start": now.replace(hour=17), "end": now.replace(hour=23, minute=59)},
             ]
-            
+
             self.service.get_merged_availability.side_effect = [
                 (
                     "🟢 Available Now (until Mon 06PM)",
@@ -279,18 +280,41 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         embed = interaction.followup.send.await_args.kwargs["embed"]
         self.assertIsInstance(embed, discord.Embed)
         self.assertEqual(embed.title, "Parking Status")
-        
+
         # Resident/Guest assertions
         self.assertEqual(embed.fields[0].name, "Resident/Guest Spots (Next 7 Days)")
         self.assertIn("Spot 10", embed.fields[0].value)
         self.assertIn("Spot 46", embed.fields[0].value)
-        
+
         # Staff assertions
         self.assertEqual(embed.fields[1].name, "Staff Parking (Today)")
-        self.assertIn("**Staff Spot 1**: 🔴 Busy (Next: Mon 12PM)", embed.fields[1].value)
-        self.assertIn("**Staff Spot 2**: 🟢 Available Now (until Mon 05PM)", embed.fields[1].value)
+        self.assertIn("**Spot 1**: 🔴 Busy (Next: Mon 12PM)", embed.fields[1].value)
+        self.assertIn("**Spot 2**: 🟢 Available Now (until Mon 05PM)", embed.fields[1].value)
         self.assertNotIn("998", embed.fields[1].value)
         self.assertNotIn("999", embed.fields[1].value)
+
+    async def test_parking_status_shows_fully_booked_for_staff(self):
+        interaction = make_interaction()
+        tz = parking_module.LOCAL_TZ
+        now = datetime(2026, 4, 6, 10, 0, tzinfo=tz)
+
+        with patch("bot.cogs.parking.datetime", wraps=datetime) as datetime_mock:
+            datetime_mock.now.return_value = now
+
+            self.service.get_parking_data.return_value = ([], [], [])
+            self.service.get_staff_availability_windows.return_value = []
+            self.service.get_merged_availability.return_value = ("❌ Fully Booked", [])
+
+            await parking_module.Parking.parking_status.callback(self.cog, interaction)
+
+        interaction.response.defer.assert_awaited_once_with(ephemeral=True)
+        interaction.followup.send.assert_awaited_once()
+        embed = interaction.followup.send.await_args.kwargs["embed"]
+
+        self.assertEqual(embed.fields[1].name, "Staff Parking (Today)")
+        self.assertIn("**Spot 1**: ❌ Fully Booked", embed.fields[1].value)
+        self.assertIn("**Spot 2**: ❌ Fully Booked", embed.fields[1].value)
+        self.assertNotIn("Free:", embed.fields[1].value)
 
     async def test_cancel_rejects_manual_text(self):
         interaction = make_interaction()
@@ -529,13 +553,14 @@ class ParkingServiceTests(unittest.TestCase):
         # Should be called twice for parking_spots
         self.assertEqual(service.supabase.table.call_count, 2)
         service.supabase.table.assert_called_with("parking_spots")
-        
+
         # Check first update (clearing old spot)
         self.assertEqual(query.update.call_args_list[0][0][0], {"discord_userid": None, "discord_nickname": None})
         self.assertEqual(query.eq.call_args_list[0][0], ("discord_userid", "1234"))
 
         # Check second update (setting new spot)
-        self.assertEqual(query.update.call_args_list[1][0][0], {"discord_userid": "1234", "discord_nickname": "TestUser"})
+        self.assertEqual(query.update.call_args_list[1][0][0],
+                         {"discord_userid": "1234", "discord_nickname": "TestUser"})
         self.assertEqual(query.eq.call_args_list[1][0], ("spot_number", 27))
 
     @patch("bot.services.parking_service.create_client")

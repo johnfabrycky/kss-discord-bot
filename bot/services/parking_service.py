@@ -128,7 +128,7 @@ class ParkingService:
                 "discord_nickname": None,
             }
         ).eq("discord_userid", str(user_id)).execute()
-        
+
         # Set ownership on the newly offered spot
         self.supabase.table("parking_spots").update(
             {
@@ -210,8 +210,9 @@ class ParkingService:
 
     def _initialize_spots_sync(self):
         # Fetch existing spots so we don't accidentally wipe is_guest status or user assignments during upsert
-        existing_spots_response = self.supabase.table("parking_spots").select("spot_number, is_guest, discord_userid, discord_nickname").execute()
-        
+        existing_spots_response = self.supabase.table("parking_spots").select(
+            "spot_number, is_guest, discord_userid, discord_nickname").execute()
+
         existing_data = {
             int(row["spot_number"]): row for row in existing_spots_response.data
         }
@@ -270,7 +271,7 @@ class ParkingService:
         """Return a list of non-blackout time windows for the specified range."""
         windows = []
         current_window_start = None
-        
+
         hour_iterator = start_time
         while hour_iterator < end_time:
             is_in_blackout = self.is_blackout(hour_iterator, hour_iterator + timedelta(hours=1))
@@ -280,7 +281,7 @@ class ParkingService:
             elif is_in_blackout and current_window_start is not None:
                 windows.append({"start": current_window_start, "end": hour_iterator})
                 current_window_start = None
-            
+
             hour_iterator += timedelta(hours=1)
 
         if current_window_start is not None:
