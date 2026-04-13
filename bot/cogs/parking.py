@@ -358,6 +358,14 @@ class Parking(commands.Cog):
                 if header == "❌ Not Offered":
                     continue
 
+                # If the header already contains the specific end time and there's only one block,
+                # avoid redundant "Free: NEXT..." detail lines.
+                if len(blocks) == 1:
+                    time_str = blocks[0][1].strftime('%a %I%p')
+                    if time_str in header:
+                        lines.append(f"**Spot {spot_num}**: {header}")
+                        continue
+
                 detail = " | ".join(
                     [
                         f"{'NOW' if block[0] <= now < block[1] else 'NEXT'} "
@@ -365,13 +373,7 @@ class Parking(commands.Cog):
                         for block in blocks
                     ]
                 )
-                if len(blocks) == 1 and "Available Now" in header:
-                    match = re.search(r'\(until (.+)\)', header)
-                    if match and blocks[0][1].strftime('%a %I%p') == match.group(1):
-                        lines.append(f"**Spot {spot_num}**: {header}")
-                        continue
-
-                lines.append(f"**Spot {spot_num}**: {header}\n- Free: {detail or 'Fully Booked'}")
+                lines.append(f"**Spot {spot_num}**: {header}\n- Free: {detail}")
 
             # Determine staff cutoff (2 AM for Fri/Sat, 12 AM otherwise)
             is_weekend = now.weekday() in {4, 5}
