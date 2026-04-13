@@ -355,8 +355,6 @@ class Parking(commands.Cog):
 
                 header, blocks = self.service.get_merged_availability(now, resident_cutoff, spot_offers, spot_claims,
                                                                       is_guest)
-                if header == "❌ Not Offered":
-                    continue
 
                 # If the header already contains the specific end time and there's only one block,
                 # avoid redundant "Free: NEXT..." detail lines.
