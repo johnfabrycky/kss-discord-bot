@@ -373,7 +373,7 @@ class Parking(commands.Cog):
                         for block in blocks
                     ]
                 )
-                lines.append(f"**Spot {spot_num}**: {header}\n- Free: {detail or 'Fully Booked'}")
+                lines.append(f"**Spot {spot_num}**: {header}\n- Free: {detail}")
 
             # Determine staff cutoff (2 AM for Fri/Sat, 12 AM otherwise)
             is_weekend = now.weekday() in {4, 5}
