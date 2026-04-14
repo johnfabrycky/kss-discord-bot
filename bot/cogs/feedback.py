@@ -6,10 +6,12 @@ from discord import app_commands, ui
 from discord.ext import commands
 from supabase import Client
 
+from bot.config import BOT_NAME
+
 logger = logging.getLogger(__name__)
 
 
-class FeedbackModal(ui.Modal, title="Improve Felipe"):
+class FeedbackModal(ui.Modal, title=f"Improve {BOT_NAME}"):
     """Modal used to collect free-form feedback and persist it to Supabase."""
 
     suggestion = ui.TextInput(
@@ -51,7 +53,7 @@ class FeedbackModal(ui.Modal, title="Improve Felipe"):
             )
 
         await interaction.followup.send(
-            f"Thanks {interaction.user.display_name}! Your feedback has been sent to the Gerald dev team. 🚀",
+            f"Thanks {interaction.user.display_name}! Your feedback has been sent to the {BOT_NAME} dev team. 🚀",
             ephemeral=True,
         )
 
@@ -66,7 +68,7 @@ class Feedback(commands.Cog):
 
     @app_commands.command(
         name="feedback",
-        description="Submit feedback to the Felipe dev team (hit enter, then a submission box will appear)",
+        description=f"Submit feedback to the {BOT_NAME} dev team (hit enter, then a submission box will appear)",
     )
     async def feedback(self, interaction: discord.Interaction):
         """Open the feedback modal for the requesting user."""
