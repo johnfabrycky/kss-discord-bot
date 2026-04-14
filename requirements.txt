@@ -6,3 +6,4 @@ pytz
 pandas
 supabase
 python-dateutil
+httpx

@@ -171,7 +171,7 @@ async def help_command(interaction: discord.Interaction):
     )
 
     sections = {
-        "🚗 Parking": "`/offer_spot`, `/claim_spot`, `/claim_staff`, `/parking_status`, `/cancel`, `/parking_help`",
+        "🚗 Parking": "`/parking_help`, `/offer_spot`, `/claim_spot`, `/claim_staff`, `/parking_status`, `/cancel`, `/my_parking`",
         "🍱 Lates": "`/late_me`, `/view_lates`, `/my_lates`, `/clear_late`",
         # "🎬 Movies": "`/watch`, `/where`",
         "🍽️ Meals": "`/today`",
