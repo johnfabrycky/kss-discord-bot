@@ -316,7 +316,7 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("**Spot 2**: ❌ Fully Booked", embed.fields[1].value)
         self.assertNotIn("Free:", embed.fields[1].value)
 
-    async def test_parking_status_hides_unclaimable_spots(self):
+    async def test_parking_status_hides_unclaimable_resident_spots(self):
         interaction = make_interaction()
         tz = parking_module.LOCAL_TZ
         now = datetime(2026, 4, 6, 10, 0, tzinfo=tz)
