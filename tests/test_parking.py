@@ -345,6 +345,35 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertNotIn("Spot 10", embed.fields[0].value)
 
+    def test_get_merged_availability_shows_all_week(self):
+        from bot.config import LOCAL_TZ
+        from datetime import datetime, timedelta
+        from bot.services.parking_service import ParkingService
+        from unittest.mock import MagicMock
+
+        # 1. Instantiate the REAL service to test its internal logic,
+        # passing a dummy mock for the database to prevent network calls.
+        real_service = ParkingService(supabase=MagicMock())
+
+        now = datetime(2026, 4, 14, 10, 0, tzinfo=LOCAL_TZ)
+        cutoff = now + timedelta(days=7)
+
+        # 2. Simulate an offer that spans the entire 7-day window with no claims
+        raw_offers = [{
+            "start": now,
+            "end": cutoff
+        }]
+        raw_claims = []
+
+        # 3. Call the method on the REAL service, not self.service
+        header, blocks = real_service.get_merged_availability(
+            now, cutoff, raw_offers, raw_claims, is_guest=False
+        )
+
+        # 4. Verify the new logic works
+        self.assertIsNone(blocks)
+        self.assertEqual(header, "🟢 Available Now (All Week)")
+
     async def test_cancel_rejects_manual_text(self):
         interaction = make_interaction()
 
