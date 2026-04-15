@@ -10,8 +10,6 @@ sessions.
     * [Late Plates](#-late-plates)
     * [Meal Schedule](#-meal-schedule)
     * [Feedback](#-feedback)
-2. [To-Implement](#-to-implement)
-3. [Development & Branching](#-development--branching)
 4. [Trouble-shooting a down event](#-trouble-shooting-a-down-event)
 5. [Maintenance](#-maintenance)
 6. [How to host the bot](#-how-to-host-the-bot)
