@@ -11,9 +11,13 @@ Pull Request.
 
 **Contribution Workflow:**
 
-1. Branching: For any improvements to current features, use a pre-existing branch (not main).
+1. Branching: For any improvements to current features, use a branch (not main).
 2. Create a new branch if building a new cog (e.g., git checkout -b feature-name).
-3. If developing in PyCharm, run "Code->Reformat Code" from your root directory, as shown in the screenshot.
+
+3. Unit Testing: Always ensure the previous functionality still works by running "python -m unittest". Additionally, if changing the functionality
+   or adding new functionality, update/add unit tests to verify the changes provide the desired behavior. 
+
+4. If developing in PyCharm, run "Code->Reformat Code" from your root directory, as shown in the screenshot.
    <div>
       <img width="714" height="618" alt="image" src="https://github.com/user-attachments/assets/fe242820-dce4-48c0-bd52-eee0177a4a62" />
    </div>
@@ -34,13 +38,13 @@ Pull Request.
 
 This will run "Optimize Imports" and "Reformat Code" every time you save.
 
-4. Pull Requests: Submit a PR to 'main' once work is verified.
+5. Pull Requests: Submit a PR to 'main' once work is verified.
 
-5. If you wish to preview the behavior of the PR, add [render preview] to the PR title.
+6. If you wish to preview the behavior of the PR, add [render preview] to the PR title.
    Then, make sure to deploy the felipe-dev bot on render and invite it to the server.
    Once done testing the bot, kick it from the server so that it's commands don't continue to appear alongside the
    commands for felipe-prod.
    Remember that the felipe-dev bot currently does not have an associated uptime robot checker so it will spin down
    after 15 minutes of inactivity.
 
-7. Deployment: Merges occur during SCHEDULED MAINTENANCE to ensure stability.
+8. Deployment: Merges occur during SCHEDULED MAINTENANCE to ensure stability.
