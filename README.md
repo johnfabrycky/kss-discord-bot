@@ -14,7 +14,6 @@ sessions.
 3. [Troubleshooting](#-troubleshooting)
 4. [Maintenance](#-maintenance)
 
-
 ## 🚀 Active Functionality
 
 ### 🚗 Parking Utility
@@ -66,7 +65,8 @@ sessions.
 
 ## 📡 Deployment
 
-For detailed instructions on how to deploy the bot, both locally and on the cloud, please see the [Deployment Guide](DEPLOYMENT.md).
+For detailed instructions on how to deploy the bot, both locally and on the cloud, please see
+the [Deployment Guide](DEPLOYMENT.md).
 
 ---
 
