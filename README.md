@@ -3,7 +3,7 @@
 A multi-purpose utility bot for the KSS community, managing parking, meal schedules, late plates, and social movie
 sessions.
 
-[![Uptime Robot status](https://img.shields.io/uptimerobot/status/m796334592-a3d35f15035630eb23f83359)](https://stats.uptimerobot.com/xcdwYvPfdq)
+[![Uptime Robot status](https://img.shields.io/uptimerobot/status/xcdwYvPfdq)](https://stats.uptimerobot.com/xcdwYvPfdq)
 
 ## 📖 Table of Contents
 
