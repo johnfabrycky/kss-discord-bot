@@ -10,9 +10,10 @@ sessions.
     * [Late Plates](#-late-plates)
     * [Meal Schedule](#-meal-schedule)
     * [Feedback](#-feedback)
-4. [Trouble-shooting a down event](#-trouble-shooting-a-down-event)
-5. [Maintenance](#-maintenance)
-6. [How to host the bot](#-how-to-host-the-bot)
+2. [Deployment](#-deployment)
+3. [Troubleshooting](#-troubleshooting)
+4. [Maintenance](#-maintenance)
+
 
 ## 🚀 Active Functionality
 
@@ -63,7 +64,13 @@ sessions.
 
 ---
 
-## 🚨 Trouble-shooting a down event
+## 📡 Deployment
+
+For detailed instructions on how to deploy the bot, both locally and on the cloud, please see the [Deployment Guide](DEPLOYMENT.md).
+
+---
+
+## 🚨 Troubleshooting
 
 First, go to the [Render](https://dashboard.render.com/) page for the Discord Web Bot, go to Logs, and see if there are
 any error logs that
@@ -104,60 +111,3 @@ On free tier, the render service cannot be accessed by multiple accounts so John
 with the ability to host the bot. This privilege should be soon given to others, such as future RAs of BHM, and more
 importantly
 the Koin/Strat/Sutton google profiles (ask an RA of BHM if you need the email addresses).
-
----
-
-## 📡 How to host the bot
-
-1. Create a free account on [Supabase](https://supabase.com/). Request to join "johnfabrycky's Org"
-   on [Supabase](https://supabase.com/dashboard/org/ejwmbmbydveoeffdnpox) and to be
-   given admin privileges so that you have the authority to perform CRUD operations on the database.
-2. Create a free account
-   with [Healthchecks.io](https://healthchecks.io/projects/2cbc36e8-0a97-4fbb-b655-0016d22acf42/checks/).
-   Ask the current owner (John Fabrycky as of 3/31/26) to give you team access and if necessary
-   <img width="591" height="846" alt="image" src="https://github.com/user-attachments/assets/50575de7-1281-4d6d-9f9d-5c657b35b6ea" />
-   transfer ownership to you.
-5. Create a free account with [Uptime Robot](https://dashboard.uptimerobot.com/monitors).
-6. Create a free account on [Render](https://dashboard.render.com/), go to the home page and select "New Web Service"
-   under "Web Services"
-7. Choose "Github" as your provider
-8. Find the "felipe" git repository and select it.
-9. Use most of the default entries. For Start Command, replace the default with "python main.py".
-10. Use the free tier, under "For hobby projects".
-11. Under environment, you need to add three environment variables. They will be named DISCORD_TOKEN,
-    SUPABASE_SERVICE_KEY, HEALTHCHECK_URL, and SUPABASE_URL.
-    Under the environment tab, click edit on the "Environment Variables" Section. In the bottom left of the box,
-    click "+Add Variable". Where the placeholder text reads "NAME_OF_VARIABLE", put the variable name. Do this
-    for each of the variables named above.
-    1. DISCORD_TOKEN - First option: find whoever is currently hosting the bot (John Fabrycky as of 3/31/26) and ask
-       them to share the token with you.
-       Otherwise, go to the discord developer [portal](https://discord.com/developers/home). Select the Felipe bot, then
-       select
-       the Bot tab, then under Token, press Reset Token. ONLY do this if you are unable to contact the person who
-       currently
-       has the Token because it will invalidate the current Token. Place the token in the box to the right of where
-       you put the name "DISCORD_TOKEN" and save.
-    2. HEALTHCHECK_URL - On the "Midnight Cleanup" Healthcheck in Healthchecks.io, under "How to Ping" on the main page,
-       click on the URL that begins with "https://" to copy it to your clipboard. Then enter that URL into Render
-       associated
-       with HEALTHCHECK_URL in the environment tab.
-    4. SUPABASE_URL - Go to Supabase and select the "kss discord bot". Then go to Integrations -> DATA API -> API URL.
-       Copy
-       the API URL. Paste it in the appropriate box corresponding to "SUPABASE_URL" in the Render environment page.
-    5. SUPABASE_SERVICE_KEY - On Supabase, go to Settings -> Configuration -> API Keys, then under "Secret Keys", find
-       the
-       default key, press the "copy" icon to put it on your clipboard, then return to render environment and paste it
-       into the appropriate box.
-12. Select the Events tab, then find the "Manual Deploy" button, click it and select "Deploy latest commit".
-13. Go to Monitor -> Logs. It should build in under 5 minutes, with the success message "==> Your service is live 🎉",
-    and no error messages.
-14. Go to Events. ON the top bar towards the bottom there will be a purple link with a copy symbol next to it, that
-    ends in "onrender.com".
-    <div>
-       <img width="1611" height="541" alt="Felipe_ping_instr_picture" src="https://github.com/user-attachments/assets/8f8181ee-beb3-49f4-bdcf-f808ed7aabc3" />
-    </div>
-    Copy the link (a.k.a monitor) to your clipboard.
-16. On UptimeRobot, create a new Monitor. Under "URL to monitor", enter the monitor from your clipboard. Under
-    "How will we notify you?", select your preferred means of notification for a down event. Under "Monitor interval",
-    leave it at 5m. Then click "Create monitor".
-17. Congratulations, you have fully configured the discord bot to run on a hosted service for free 🎉🎺🎉🎺.
