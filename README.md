@@ -13,6 +13,11 @@ sessions.
 2. [Deployment](#-deployment)
 3. [Troubleshooting](#-troubleshooting)
 4. [Maintenance](#-maintenance)
+5. [Architecture](docs/ARCHITECTURE.md)
+6. [Contributing](docs/CONTRIBUTING.md)
+7. [Changelog](docs/CHANGELOG.md)
+8. [Security](docs/SECURITY.md)
+
 
 ## 🚀 Active Functionality
 
@@ -65,8 +70,7 @@ sessions.
 
 ## 📡 Deployment
 
-For detailed instructions on how to deploy the bot, both locally and on the cloud, please see
-the [Deployment Guide](DEPLOYMENT.md).
+For detailed instructions on how to deploy the bot, both locally and on the cloud, please see the [Deployment Guide](docs/DEPLOYMENT.md).
 
 ---
 
