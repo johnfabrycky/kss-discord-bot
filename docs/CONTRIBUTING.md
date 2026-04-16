@@ -14,8 +14,9 @@ Pull Request.
 1. Branching: For any improvements to current features, use a branch (not main).
 2. Create a new branch if building a new cog (e.g., git checkout -b feature-name).
 
-3. Unit Testing: Always ensure the previous functionality still works by running "python -m unittest". Additionally, if changing the functionality
-   or adding new functionality, update/add unit tests to verify the changes provide the desired behavior. 
+3. Unit Testing: Always ensure the previous functionality still works by running "python -m unittest". Additionally, if
+   changing the functionality
+   or adding new functionality, update/add unit tests to verify the changes provide the desired behavior.
 
 4. If developing in PyCharm, run "Code->Reformat Code" from your root directory, as shown in the screenshot.
    <div>

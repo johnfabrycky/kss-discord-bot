@@ -20,7 +20,6 @@ sessions.
 7. [Changelog](docs/CHANGELOG.md)
 8. [Security](docs/SECURITY.md)
 
-
 ## 🚀 Active Functionality
 
 ### 🚗 Parking Utility
@@ -72,7 +71,8 @@ sessions.
 
 ## 📡 Deployment
 
-For detailed instructions on how to deploy the bot, both locally and on the cloud, please see the [Deployment Guide](docs/DEPLOYMENT.md).
+For detailed instructions on how to deploy the bot, both locally and on the cloud, please see
+the [Deployment Guide](docs/DEPLOYMENT.md).
 
 ---
 
