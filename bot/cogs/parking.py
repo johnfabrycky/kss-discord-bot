@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 import time
 from collections import Counter
 from datetime import datetime, timedelta
@@ -387,7 +388,7 @@ class Parking(commands.Cog):
                     staff_lines.append(f"**Spot {i + 1}**: {header}")
                     continue
 
-                detail = " | ".join(
+                detail = "\n- ".join(
                     [
                         f"{'NOW' if block[0] <= now < block[1] else 'NEXT'} "
                         f"{block[0].strftime('%I%p')}-{block[1].strftime('%I%p')}"
