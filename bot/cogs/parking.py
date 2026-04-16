@@ -362,7 +362,7 @@ class Parking(commands.Cog):
                     lines.append(f"**Spot {spot_num}**: {header}")
                     continue
 
-                detail = " | ".join(
+                detail = "\n- ".join(
                     [
                         f"{'NOW' if block[0] <= now < block[1] else 'NEXT'} "
                         f"{block[0].strftime('%a %I%p')}-{block[1].strftime('%a %I%p')}"
