@@ -351,9 +351,10 @@ class Parking(commands.Cog):
                 spot_offers = offers_db.get(spot_num, [])
                 spot_claims = sorted(claims_db.get(spot_num, []), key=lambda x: x["start"])
                 is_guest = spot_num in guest_spots
+                is_resident = not (spot_num == 998 or spot_num == 999)
 
                 header, blocks = self.service.get_merged_availability(now, resident_cutoff, spot_offers, spot_claims,
-                                                                      is_guest)
+                                                                      is_guest, is_resident)
 
                 if not is_guest and header == "❌ Not Offered":
                     continue
@@ -384,7 +385,7 @@ class Parking(commands.Cog):
             staff_offers = self.service.get_staff_availability_windows(now, staff_cutoff)
             for i, spot_num in enumerate(STAFF_SPOTS):
                 spot_claims = sorted(claims_db.get(spot_num, []), key=lambda x: x["start"])
-                header, blocks = self.service.get_merged_availability(now, staff_cutoff, staff_offers, spot_claims)
+                header, blocks = self.service.get_merged_availability(now, staff_cutoff, staff_offers, spot_claims, is_resident=False)
 
                 if not blocks:
                     staff_lines.append(f"**Spot {i + 1}**: {header}")
