@@ -1,18 +1,12 @@
 import asyncio
 import logging
-import os
 import time
 from datetime import datetime, timedelta
 
 from dateutil.relativedelta import relativedelta
-from supabase import create_client
+from supabase import AsyncClient
 
 from bot.config import LOCAL_TZ, STAFF_SPOTS, VALID_SPOTS, MINIMUM_RESERVATION_HOURS
-
-try:
-    import httpx
-except ImportError:  # pragma: no cover - httpx is provided transitively in production.
-    httpx = None
 
 logger = logging.getLogger(__name__)
 
@@ -21,17 +15,15 @@ class ParkingService:
     """Database-backed business logic for the parking system."""
 
     AUTOCOMPLETE_CACHE_TTL_SECONDS = 5
-    AUTOCOMPLETE_TIMEOUT_SECONDS = 2
 
-    def __init__(self, supabase=None):
-        """Use the shared Supabase client, falling back to direct creation when needed."""
-        if supabase is None:
-            url = os.environ.get("SUPABASE_URL")
-            key = os.environ.get("SUPABASE_SERVICE_KEY")
-            supabase = create_client(url, key)
+    def __init__(self, supabase: AsyncClient):
+        """Use the shared async Supabase client."""
         self.supabase = supabase
+
         self._claim_autocomplete_cache = None
         self._cancel_autocomplete_cache = {}
+        self._offer_spot_preference_cache = {}
+
         self._spot_mutation_locks = {}
         self._staff_mutation_lock = asyncio.Lock()
         self._fallback_mutation_lock = asyncio.Lock()
@@ -44,57 +36,6 @@ class ParkingService:
         if spot in STAFF_SPOTS:
             return self._staff_mutation_lock
         return self._spot_mutation_locks.setdefault(int(spot), asyncio.Lock())
-
-    @staticmethod
-    def _build_log_context(log_context=None, **extra_fields):
-        """Merge contextual log fields without mutating the caller's payload."""
-        merged = dict(log_context or {})
-        merged.update({key: value for key, value in extra_fields.items() if value is not None})
-        return merged
-
-    @staticmethod
-    def _is_remote_protocol_error(exc):
-        """Detect the HTTP protocol termination errors raised by the Supabase stack."""
-        if httpx is not None and isinstance(exc, httpx.RemoteProtocolError):
-            return True
-        return exc.__class__.__name__ == "RemoteProtocolError"
-
-    @staticmethod
-    def _is_transport_error(exc):
-        """Detect broader HTTP transport failures from the Supabase/PostgREST client."""
-        if httpx is not None and isinstance(exc, httpx.TransportError):
-            return True
-        return exc.__class__.__name__.endswith(("ProtocolError", "TransportError", "NetworkError"))
-
-    async def _run_blocking(self, func, *args, timeout=15, log_context=None):
-        """Run a blocking Supabase operation off the event loop with timeout/logging."""
-        try:
-            return await asyncio.wait_for(asyncio.to_thread(func, *args), timeout=timeout)
-        except asyncio.TimeoutError:
-            logger.exception(
-                "Parking service operation timed out",
-                extra=self._build_log_context(log_context, error_type="TimeoutError"),
-            )
-            raise
-        except Exception as exc:
-            extra = self._build_log_context(
-                log_context,
-                error_type=type(exc).__name__,
-                error_message=str(exc),
-            )
-            if self._is_remote_protocol_error(exc):
-                logger.exception(
-                    "Parking service Supabase/PostgREST connection terminated during request",
-                    extra=extra,
-                )
-            elif self._is_transport_error(exc):
-                logger.exception(
-                    "Parking service Supabase/PostgREST transport error",
-                    extra=extra,
-                )
-            else:
-                logger.exception("Parking service operation failed", extra=extra)
-            raise
 
     def _get_cached_value(self, cache_entry):
         """Return a cached autocomplete payload when it is still fresh."""
@@ -119,41 +60,30 @@ class ParkingService:
 
         self._cancel_autocomplete_cache[key] = entry
 
-    def _save_offer_spot_preference_sync(self, user_id, username, spot):
-        """Upsert the caller's last used resident spot for future autocomplete."""
-        # Clear any existing spot ownership for this user
-        self.supabase.table("parking_spots").update(
-            {
-                "discord_userid": None,
-                "discord_nickname": None,
-            }
-        ).eq("discord_userid", str(user_id)).execute()
-
-        # Set ownership on the newly offered spot
-        self.supabase.table("parking_spots").update(
-            {
-                "discord_userid": str(user_id),
-                "discord_nickname": username,
-            }
-        ).eq("spot_number", int(spot)).execute()
-
     async def save_offer_spot_preference(self, user_id, username, spot):
         """Persist the caller's last successful offer spot without failing the command."""
-        cache_key = str(user_id)
         try:
-            await self._run_blocking(
-                self._save_offer_spot_preference_sync,
-                user_id,
-                username,
-                spot,
-                timeout=10,
-                log_context={"operation": "save_offer_spot_preference", "user_id": cache_key, "spot": spot},
-            )
+            # Clear any existing spot ownership for this user
+            await self.supabase.table("parking_spots").update(
+                {
+                    "discord_userid": None,
+                    "discord_nickname": None,
+                }
+            ).eq("discord_userid", str(user_id)).execute()
+
+            # Set ownership on the newly offered spot
+            await self.supabase.table("parking_spots").update(
+                {
+                    "discord_userid": str(user_id),
+                    "discord_nickname": username,
+                }
+            ).eq("spot_number", int(spot)).execute()
+
             return True
         except Exception:
             logger.exception(
                 "Failed to save parking spot preference",
-                extra={"user_id": cache_key, "spot": spot},
+                extra={"user_id": str(user_id), "spot": spot},
             )
             return False
 
@@ -195,65 +125,57 @@ class ParkingService:
         am_pm = "AM" if value.hour < 12 else "PM"
         return f"{value.strftime('%a %b')} {value.day} at {hour}:{value.strftime('%M')} {am_pm}"
 
-    def _load_cache_sync(self):
-        """Fetch the current guest spots from the DB to populate the cache."""
-        response = self.supabase.table("parking_spots").select("spot_number").eq("is_guest", True).execute()
-        self.guest_spots_cache = {int(row["spot_number"]) for row in response.data}
-
     async def load_cache(self):
         """Load mostly-static data into memory to reduce database hits."""
         try:
-            await self._run_blocking(self._load_cache_sync, log_context={"operation": "load_cache"})
+            response = await self.supabase.table("parking_spots").select("spot_number").eq("is_guest", True).execute()
+            self.guest_spots_cache = {int(row["spot_number"]) for row in response.data}
             logger.info(f"Loaded {len(self.guest_spots_cache)} guest spots into cache.")
         except Exception:
             logger.exception("Failed to load parking spot cache.")
 
-    def _initialize_spots_sync(self):
-        # Fetch existing spots so we don't accidentally wipe is_guest status or user assignments during upsert
-        existing_spots_response = self.supabase.table("parking_spots").select(
-            "spot_number, is_guest, discord_userid, discord_nickname").execute()
-
-        existing_data = {
-            int(row["spot_number"]): row for row in existing_spots_response.data
-        }
-
-        # Update the local cache while we have the fresh data
-        self.guest_spots_cache = {
-            spot for spot, data in existing_data.items() if data.get("is_guest")
-        }
-
-        all_configs = []
-        for spot in VALID_SPOTS:
-            old = existing_data.get(spot, {})
-            all_configs.append(
-                {
-                    "spot_number": spot,
-                    "spot_type": "resident",
-                    "is_guest": old.get("is_guest", False),
-                    "discord_userid": old.get("discord_userid"),
-                    "discord_nickname": old.get("discord_nickname"),
-                }
-            )
-
-        for spot in STAFF_SPOTS:
-            old = existing_data.get(spot, {})
-            all_configs.append(
-                {
-                    "spot_number": spot,
-                    "spot_type": "staff",
-                    "is_guest": False,
-                    "discord_userid": old.get("discord_userid"),
-                    "discord_nickname": old.get("discord_nickname"),
-                }
-            )
-
-        self.supabase.table("parking_spots").upsert(all_configs, on_conflict="spot_number").execute()
-
     async def initialize_spots(self):
         """Synchronize the database parking spot table with the configured constants."""
         try:
-            await self._run_blocking(self._initialize_spots_sync, timeout=20,
-                                     log_context={"operation": "initialize_spots"})
+            # Fetch existing spots
+            existing_spots_response = await self.supabase.table("parking_spots").select(
+                "spot_number, is_guest, discord_userid, discord_nickname").execute()
+
+            existing_data = {
+                int(row["spot_number"]): row for row in existing_spots_response.data
+            }
+
+            # Update the local cache while we have the fresh data
+            self.guest_spots_cache = {
+                spot for spot, data in existing_data.items() if data.get("is_guest")
+            }
+
+            all_configs = []
+            for spot in VALID_SPOTS:
+                old = existing_data.get(spot, {})
+                all_configs.append(
+                    {
+                        "spot_number": spot,
+                        "spot_type": "resident",
+                        "is_guest": old.get("is_guest", False),
+                        "discord_userid": old.get("discord_userid"),
+                        "discord_nickname": old.get("discord_nickname"),
+                    }
+                )
+
+            for spot in STAFF_SPOTS:
+                old = existing_data.get(spot, {})
+                all_configs.append(
+                    {
+                        "spot_number": spot,
+                        "spot_type": "staff",
+                        "is_guest": False,
+                        "discord_userid": old.get("discord_userid"),
+                        "discord_nickname": old.get("discord_nickname"),
+                    }
+                )
+
+            await self.supabase.table("parking_spots").upsert(all_configs, on_conflict="spot_number").execute()
         except Exception:
             logger.exception("Parking spot initialization failed")
 
@@ -289,327 +211,201 @@ class ParkingService:
 
         return windows
 
-    def _get_parking_data_sync(self, now, cutoff):
-        offers = (
-            self.supabase.table("parking_offers")
-            .select("*")
-            .gt("end_time", now.isoformat())
-            .lt("start_time", cutoff.isoformat())
-            .execute()
-        )
-        claims = (
-            self.supabase.table("parking_reservations")
-            .select("*")
-            .gt("end_time", now.isoformat())
-            .lt("start_time", cutoff.isoformat())
-            .execute()
-        )
-        # Using the cache instead of a database round trip
-        return offers.data, claims.data, list(self.guest_spots_cache)
-
     async def get_parking_data(self, now, cutoff):
         """Fetch all raw parking data needed to build the status view."""
-        return await self._run_blocking(
-            self._get_parking_data_sync,
-            now,
-            cutoff,
-            log_context={"operation": "get_parking_data"},
-        )
+        # Run both queries in parallel!
+        offers_task = self.supabase.table("parking_offers").select("*").gt("end_time", now.isoformat()).lt("start_time",
+                                                                                                           cutoff.isoformat()).execute()
+        claims_task = self.supabase.table("parking_reservations").select("*").gt("end_time", now.isoformat()).lt(
+            "start_time", cutoff.isoformat()).execute()
 
-    def _create_offers_sync(self, user_id, username, spot, base_start, base_end, weeks):
-        all_offers = []
-        for i in range(weeks):
-            start = base_start + timedelta(weeks=i)
-            end = base_end + timedelta(weeks=i)
-
-            existing = (
-                self.supabase.table("parking_offers")
-                .select("*")
-                .eq("spot_number", int(spot))
-                .lt("start_time", end.isoformat())
-                .gt("end_time", start.isoformat())
-                .execute()
-            )
-
-            if not existing.data:
-                all_offers.append(
-                    {
-                        "spot_number": int(spot),
-                        "owner_id": str(user_id),
-                        "owner_discord_username": username,
-                        "start_time": start.isoformat(),
-                        "end_time": end.isoformat(),
-                    }
-                )
-
-        if not all_offers:
-            return False, "❌ This spot is already offered for those times."
-
-        self.supabase.table("parking_offers").insert(all_offers).execute()
-
-        start_label = self._format_datetime_label(base_start)
-        end_label = self._format_datetime_label(base_end)
-        recur_msg = f" for the next **{weeks} weeks**" if weeks > 1 else ""
-        success_msg = (
-            f"📢 **Spot {spot}** listed{recur_msg}\n"
-            f"Start: {start_label}\n"
-            f"End: {end_label}"
-        )
-        return True, success_msg
+        offers, claims = await asyncio.gather(offers_task, claims_task)
+        return offers.data, claims.data, list(self.guest_spots_cache)
 
     async def create_offers(self, user_id, username, spot, base_start, base_end, weeks):
         """Create one or more weekly parking offers and return a user-facing confirmation."""
         async with self._get_mutation_lock_for_spot(spot):
             try:
-                return await self._run_blocking(
-                    self._create_offers_sync,
-                    user_id,
-                    username,
-                    spot,
-                    base_start,
-                    base_end,
-                    weeks,
-                    log_context={"operation": "create_offers", "user_id": str(user_id), "username": username,
-                                 "spot": spot},
+                all_offers = []
+                for i in range(weeks):
+                    start = base_start + timedelta(weeks=i)
+                    end = base_end + timedelta(weeks=i)
+
+                    existing = await self.supabase.table("parking_offers") \
+                        .select("*") \
+                        .eq("spot_number", int(spot)) \
+                        .lt("start_time", end.isoformat()) \
+                        .gt("end_time", start.isoformat()) \
+                        .execute()
+
+                    if not existing.data:
+                        all_offers.append(
+                            {
+                                "spot_number": int(spot),
+                                "owner_id": str(user_id),
+                                "owner_discord_username": username,
+                                "start_time": start.isoformat(),
+                                "end_time": end.isoformat(),
+                            }
+                        )
+
+                if not all_offers:
+                    return False, "❌ This spot is already offered for those times."
+
+                await self.supabase.table("parking_offers").insert(all_offers).execute()
+
+                start_label = self._format_datetime_label(base_start)
+                end_label = self._format_datetime_label(base_end)
+                recur_msg = f" for the next **{weeks} weeks**" if weeks > 1 else ""
+                success_msg = (
+                    f"📢 **Spot {spot}** listed{recur_msg}\n"
+                    f"Start: {start_label}\n"
+                    f"End: {end_label}"
                 )
+                return True, success_msg
             except Exception as e:
                 return False, f"❌ Database error: {e}"
-
-    def _claim_resident_spot_sync(self, user_id, username, spot, start, end):
-        conflict = (
-            self.supabase.table("parking_reservations")
-            .select("*")
-            .eq("spot_number", int(spot))
-            .lt("start_time", end.isoformat())
-            .gt("end_time", start.isoformat())
-            .execute()
-        )
-        if conflict.data:
-            return False, f"❌ Spot {spot} is already reserved."
-
-        offer_id = None
-        # Checking memory cache instead of querying Supabase
-        if int(spot) not in self.guest_spots_cache:
-            offer = (
-                self.supabase.table("parking_offers")
-                .select("id")
-                .eq("spot_number", int(spot))
-                .lte("start_time", start.isoformat())
-                .gte("end_time", end.isoformat())
-                .execute()
-            )
-            if not offer.data:
-                return False, f"❌ Spot {spot} isn't offered for that window."
-            offer_id = offer.data[0]["id"]
-
-        self.supabase.table("parking_reservations").insert(
-            {
-                "spot_number": int(spot),
-                "claimer_id": str(user_id),
-                "claimer_discord_username": username,
-                "start_time": start.isoformat(),
-                "end_time": end.isoformat(),
-                "offer_id": offer_id,
-            }
-        ).execute()
-
-        start_label = self._format_datetime_label(start)
-        end_label = self._format_datetime_label(end)
-
-        return True, f"✅ **Spot {spot}** reserved!\nStart: {start_label}\nEnd: {end_label}"
 
     async def claim_resident_spot(self, user_id, username, spot, start, end):
         """Reserve a guest spot or a resident spot covered by an existing offer."""
         async with self._get_mutation_lock_for_spot(spot):
-            return await self._run_blocking(
-                self._claim_resident_spot_sync,
-                user_id,
-                username,
-                spot,
-                start,
-                end,
-                log_context={"operation": "claim_resident_spot", "user_id": str(user_id), "username": username,
-                             "spot": spot},
-            )
+            conflict = await self.supabase.table("parking_reservations") \
+                .select("*") \
+                .eq("spot_number", int(spot)) \
+                .lt("start_time", end.isoformat()) \
+                .gt("end_time", start.isoformat()) \
+                .execute()
 
-    def _claim_staff_spot_sync(self, user_id, username, start, end):
-        if self.is_blackout(start, end):
-            return False, "❌ Blackout hours active."
+            if conflict.data:
+                return False, f"❌ Spot {spot} is already reserved."
 
-        conflicts = (
-            self.supabase.table("parking_reservations")
-            .select("spot_number")
-            .in_("spot_number", STAFF_SPOTS)
-            .lt("start_time", end.isoformat())
-            .gt("end_time", start.isoformat())
-            .execute()
-        )
-        occupied = [int(row["spot_number"]) for row in conflicts.data]
+            offer_id = None
+            if int(spot) not in self.guest_spots_cache:
+                offer = await self.supabase.table("parking_offers") \
+                    .select("id") \
+                    .eq("spot_number", int(spot)) \
+                    .lte("start_time", start.isoformat()) \
+                    .gte("end_time", end.isoformat()) \
+                    .execute()
 
-        if len(occupied) >= len(STAFF_SPOTS):
-            return False, "❌ Staff spots are full."
+                if not offer.data:
+                    return False, f"❌ Spot {spot} isn't offered for that window."
+                offer_id = offer.data[0]["id"]
 
-        assigned = STAFF_SPOTS[0] if STAFF_SPOTS[0] not in occupied else STAFF_SPOTS[1]
-        self.supabase.table("parking_reservations").insert(
-            {
-                "spot_number": assigned,
-                "claimer_id": str(user_id),
-                "claimer_discord_username": username,
-                "start_time": start.isoformat(),
-                "end_time": end.isoformat(),
-            }
-        ).execute()
+            await self.supabase.table("parking_reservations").insert(
+                {
+                    "spot_number": int(spot),
+                    "claimer_id": str(user_id),
+                    "claimer_discord_username": username,
+                    "start_time": start.isoformat(),
+                    "end_time": end.isoformat(),
+                    "offer_id": offer_id,
+                }
+            ).execute()
 
-        start_label = self._format_datetime_label(start)
-        end_label = self._format_datetime_label(end)
+            start_label = self._format_datetime_label(start)
+            end_label = self._format_datetime_label(end)
 
-        return True, f"✅ Staff Spot reserved!\nStart: {start_label}\nEnd: {end_label}"
+            return True, f"✅ **Spot {spot}** reserved!\nStart: {start_label}\nEnd: {end_label}"
 
     async def claim_staff_spot(self, user_id, username, start, end):
         """Assign the first available staff spot for a requested window."""
         async with self._staff_mutation_lock:
-            return await self._run_blocking(
-                self._claim_staff_spot_sync,
-                user_id,
-                username,
-                start,
-                end,
-                log_context={"operation": "claim_staff_spot", "user_id": str(user_id), "username": username},
-            )
+            if self.is_blackout(start, end):
+                return False, "❌ Blackout hours active."
 
-    def _resolve_cancel_target_spot_sync(self, action_type, record_id):
-        """Resolve the affected spot so cancel operations share the same write lock."""
-        table_name = "parking_offers" if action_type == "offer" else "parking_reservations"
-        response = (
-            self.supabase.table(table_name)
-            .select("spot_number")
-            .eq("id", str(record_id))
-            .execute()
-        )
-        if response.data:
-            return int(response.data[0]["spot_number"])
-        return None
-
-    def _cancel_action_sync(self, user_id, action_type, record_id):
-        now_iso = datetime.now(LOCAL_TZ).isoformat()
-
-        if action_type == "offer":
-            target = (
-                self.supabase.table("parking_offers")
-                .select("*")
-                .eq("owner_id", str(user_id))
-                .eq("id", str(record_id))
-                .gt("end_time", now_iso)
+            conflicts = await self.supabase.table("parking_reservations") \
+                .select("spot_number") \
+                .in_("spot_number", STAFF_SPOTS) \
+                .lt("start_time", end.isoformat()) \
+                .gt("end_time", start.isoformat()) \
                 .execute()
-            )
-            if not target.data:
-                logger.warning(
-                    "Parking cancel found no matching offer",
-                    extra={"user_id": str(user_id), "action_type": action_type, "record_id": str(record_id)},
-                )
-                return False, "No matching offers.", None
 
-            offer = target.data[0]
-            claims = self.supabase.table("parking_reservations").select("claimer_id").eq("offer_id",
-                                                                                         str(record_id)).execute()
-            self.supabase.table("parking_reservations").delete().eq("offer_id", str(record_id)).execute()
-            self.supabase.table("parking_offers").delete().eq("id", str(record_id)).execute()
-            pings = list({f"<@{c['claimer_id']}>" for c in claims.data})
+            occupied = [int(row["spot_number"]) for row in conflicts.data]
 
-            spot_label = "Staff Spot" if offer['spot_number'] in STAFF_SPOTS else f"Spot {offer['spot_number']}"
-            return True, f"🔄 {spot_label} offer withdrawn.", pings
+            if len(occupied) >= len(STAFF_SPOTS):
+                return False, "❌ Staff spots are full."
 
-        target = (
-            self.supabase.table("parking_reservations")
-            .select("*")
-            .eq("claimer_id", str(user_id))
-            .eq("id", str(record_id))
-            .gt("end_time", now_iso)
-            .execute()
-        )
-        if not target.data:
-            logger.warning(
-                "Parking cancel found no matching reservation",
-                extra={"user_id": str(user_id), "action_type": action_type, "record_id": str(record_id)},
-            )
-            return False, "No matching claims.", None
+            assigned = STAFF_SPOTS[0] if STAFF_SPOTS[0] not in occupied else STAFF_SPOTS[1]
+            await self.supabase.table("parking_reservations").insert(
+                {
+                    "spot_number": assigned,
+                    "claimer_id": str(user_id),
+                    "claimer_discord_username": username,
+                    "start_time": start.isoformat(),
+                    "end_time": end.isoformat(),
+                }
+            ).execute()
 
-        reservation = target.data[0]
-        self.supabase.table("parking_reservations").delete().eq("id", str(record_id)).execute()
-        spot_label = "Staff Spot" if reservation['spot_number'] in STAFF_SPOTS else f"Spot {reservation['spot_number']}"
-        return True, f"🔄 Reservation for {spot_label} cancelled.", None
+            start_label = self._format_datetime_label(start)
+            end_label = self._format_datetime_label(end)
+
+            return True, f"✅ Staff Spot reserved!\nStart: {start_label}\nEnd: {end_label}"
 
     async def cancel_action(self, user_id, action_type, record_id):
         """Cancel one selected offer or reservation and return any affected user mentions."""
-        log_context = {"operation": "cancel_action", "user_id": str(user_id), "action_type": action_type,
-                       "record_id": str(record_id)}
-        lock = self._fallback_mutation_lock
-
         try:
-            spot = await self._run_blocking(
-                self._resolve_cancel_target_spot_sync,
-                action_type,
-                record_id,
-                timeout=5,
-                log_context={**log_context, "phase": "resolve_cancel_target"},
-            )
+            table_name = "parking_offers" if action_type == "offer" else "parking_reservations"
+            response = await self.supabase.table(table_name) \
+                .select("spot_number") \
+                .eq("id", str(record_id)) \
+                .execute()
+
+            spot = int(response.data[0]["spot_number"]) if response.data else None
         except Exception:
             spot = None
 
-        if spot is not None:
-            lock = self._get_mutation_lock_for_spot(spot)
+        lock = self._get_mutation_lock_for_spot(spot) if spot is not None else self._fallback_mutation_lock
 
         async with lock:
-            return await self._run_blocking(
-                self._cancel_action_sync,
-                user_id,
-                action_type,
-                record_id,
-                timeout=15,
-                log_context=log_context,
-            )
+            now_iso = datetime.now(LOCAL_TZ).isoformat()
 
-    def _get_user_activity_sync(self, user_id):
-        now_iso = datetime.now(LOCAL_TZ).isoformat()
-        offers = (
-            self.supabase.table("parking_offers")
-            .select("*")
-            .eq("owner_id", str(user_id))
-            .gt("end_time", now_iso)
-            .execute()
-        )
-        claims = (
-            self.supabase.table("parking_reservations")
-            .select("*")
-            .eq("claimer_id", str(user_id))
-            .gt("end_time", now_iso)
-            .execute()
-        )
-        return offers.data, claims.data
+            if action_type == "offer":
+                target = await self.supabase.table("parking_offers") \
+                    .select("*") \
+                    .eq("owner_id", str(user_id)) \
+                    .eq("id", str(record_id)) \
+                    .gt("end_time", now_iso) \
+                    .execute()
+
+                if not target.data:
+                    return False, "No matching offers.", None
+
+                offer = target.data[0]
+                claims = await self.supabase.table("parking_reservations").select("claimer_id").eq("offer_id",
+                                                                                                   str(record_id)).execute()
+                await self.supabase.table("parking_reservations").delete().eq("offer_id", str(record_id)).execute()
+                await self.supabase.table("parking_offers").delete().eq("id", str(record_id)).execute()
+                pings = list({f"<@{c['claimer_id']}>" for c in claims.data})
+
+                spot_label = "Staff Spot" if offer['spot_number'] in STAFF_SPOTS else f"Spot {offer['spot_number']}"
+                return True, f"🔄 {spot_label} offer withdrawn.", pings
+
+            target = await self.supabase.table("parking_reservations") \
+                .select("*") \
+                .eq("claimer_id", str(user_id)) \
+                .eq("id", str(record_id)) \
+                .gt("end_time", now_iso) \
+                .execute()
+
+            if not target.data:
+                return False, "No matching claims.", None
+
+            reservation = target.data[0]
+            await self.supabase.table("parking_reservations").delete().eq("id", str(record_id)).execute()
+            spot_label = "Staff Spot" if reservation[
+                                             'spot_number'] in STAFF_SPOTS else f"Spot {reservation['spot_number']}"
+            return True, f"🔄 Reservation for {spot_label} cancelled.", None
 
     async def get_user_activity(self, user_id):
         """Fetch active offers and reservations for a specific user."""
-        return await self._run_blocking(
-            self._get_user_activity_sync,
-            user_id,
-            log_context={"operation": "get_user_activity", "user_id": str(user_id)},
-        )
+        now_iso = datetime.now(LOCAL_TZ).isoformat()
+        offers_task = self.supabase.table("parking_offers").select("*").eq("owner_id", str(user_id)).gt("end_time",
+                                                                                                        now_iso).execute()
+        claims_task = self.supabase.table("parking_reservations").select("*").eq("claimer_id", str(user_id)).gt(
+            "end_time", now_iso).execute()
 
-    def _get_cancel_autocomplete_data_sync(self, user_id, now_iso):
-        offers = (
-            self.supabase.table("parking_offers")
-            .select("*")
-            .eq("owner_id", str(user_id))
-            .gt("end_time", now_iso)
-            .execute()
-        )
-        claims = (
-            self.supabase.table("parking_reservations")
-            .select("*")
-            .eq("claimer_id", str(user_id))
-            .gt("end_time", now_iso)
-            .execute()
-        )
+        offers, claims = await asyncio.gather(offers_task, claims_task)
         return offers.data, claims.data
 
     async def get_cancel_autocomplete_data(self, user_id, now):
@@ -619,35 +415,17 @@ class ParkingService:
             return cached
 
         try:
-            payload = await self._run_blocking(
-                self._get_cancel_autocomplete_data_sync,
-                user_id,
-                now.isoformat(),
-                timeout=self.AUTOCOMPLETE_TIMEOUT_SECONDS,
-                log_context={"operation": "get_cancel_autocomplete_data", "user_id": str(user_id)},
-            )
+            offers_task = self.supabase.table("parking_offers").select("*").eq("owner_id", str(user_id)).gt("end_time",
+                                                                                                            now.isoformat()).execute()
+            claims_task = self.supabase.table("parking_reservations").select("*").eq("claimer_id", str(user_id)).gt(
+                "end_time", now.isoformat()).execute()
+
+            offers, claims = await asyncio.gather(offers_task, claims_task)
+            payload = (offers.data, claims.data)
             self._store_cache_value("cancel", str(user_id), payload)
             return payload
         except Exception:
             return [], []
-
-    def _get_claim_autocomplete_data_sync(self, now_iso):
-        offers = (
-            self.supabase.table("parking_offers")
-            .select("spot_number,start_time,end_time")
-            .gt("end_time", now_iso)
-            .execute()
-        )
-        claims = (
-            self.supabase.table("parking_reservations")
-            .select("spot_number,start_time,end_time")
-            .gt("end_time", now_iso)
-            .execute()
-        )
-
-        # Build payload directly from cache
-        guest_spots = [{"spot_number": spot} for spot in self.guest_spots_cache]
-        return guest_spots, offers.data, claims.data
 
     async def get_claim_autocomplete_data(self, now):
         """Fetch guest spots, active offers, and active claims for claim autocomplete."""
@@ -656,12 +434,15 @@ class ParkingService:
             return cached
 
         try:
-            payload = await self._run_blocking(
-                self._get_claim_autocomplete_data_sync,
-                now.isoformat(),
-                timeout=self.AUTOCOMPLETE_TIMEOUT_SECONDS,
-                log_context={"operation": "get_claim_autocomplete_data"},
-            )
+            offers_task = self.supabase.table("parking_offers").select("spot_number,start_time,end_time").gt("end_time",
+                                                                                                             now.isoformat()).execute()
+            claims_task = self.supabase.table("parking_reservations").select("spot_number,start_time,end_time").gt(
+                "end_time", now.isoformat()).execute()
+
+            offers, claims = await asyncio.gather(offers_task, claims_task)
+            guest_spots = [{"spot_number": spot} for spot in self.guest_spots_cache]
+
+            payload = (guest_spots, offers.data, claims.data)
             self._store_cache_value("claim", None, payload)
             return payload
         except Exception:
@@ -671,7 +452,6 @@ class ParkingService:
         """Return the formatted string directly from the local cache."""
         if not self.guest_spots_cache:
             return "None"
-        # Sort them numerically/alphabetically before joining for cleaner display
         return ", ".join(map(str, sorted(self.guest_spots_cache)))
 
     def get_merged_availability(self, now, cutoff, raw_offers, raw_claims, is_guest=False):

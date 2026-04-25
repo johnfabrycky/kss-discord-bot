@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from supabase import AsyncClient
+
 from bot.config import LOCAL_TZ
 from bot.utils.meal_calendar import AcademicBreak, MealCalendarConfig
 
@@ -7,7 +9,7 @@ from bot.utils.meal_calendar import AcademicBreak, MealCalendarConfig
 class MealsService:
     """Handles data fetching, caching, and business logic for the meal system."""
 
-    def __init__(self, bot, supabase):
+    def __init__(self, bot, supabase: AsyncClient):
         """Initialize the service with the bot reference and a shared Supabase client."""
         self.bot = bot
         self.supabase = supabase
@@ -17,7 +19,7 @@ class MealsService:
         """Queries Supabase for the active meal calendar and caches it."""
         try:
             # Now using the injected client via self.supabase
-            response = self.supabase.table("meal_calendars").select(
+            response = await self.supabase.table("meal_calendars").select(
                 "*, academic_breaks(*)"
             ).eq("is_active", True).execute()
 

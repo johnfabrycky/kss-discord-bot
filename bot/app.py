@@ -8,7 +8,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from dotenv import load_dotenv
-from supabase import create_client
+from supabase import create_async_client, AsyncClient
 
 from bot.config import GUILD_ID, INITIAL_EXTENSIONS, MY_GUILD
 from bot.utils.discord_http_logging import install_discord_http_rate_limit_logging
@@ -29,15 +29,18 @@ class Bot(commands.Bot):
         intents.presences = True
         super().__init__(command_prefix="!", intents=intents, help_command=None)
 
-        url = os.environ.get("SUPABASE_URL")
-        key = os.environ.get("SUPABASE_SERVICE_KEY")
-        self.supabase = create_client(url, key)
+        self.supabase: AsyncClient | None = None
         self.meal_cache = []
         self.sync_on_startup = os.environ.get("SYNC_ON_STARTUP", "").lower() == "true"
         self._ready_once = False
 
     async def setup_hook(self):
         """Load configured extensions and sync slash commands to the development guild."""
+        url = os.environ.get("SUPABASE_URL")
+        key = os.environ.get("SUPABASE_SERVICE_KEY")
+        self.supabase = await create_async_client(url, key)
+        print("Async Supabase client initialized")
+
         for extension in INITIAL_EXTENSIONS:
             try:
                 await self.load_extension(extension)
@@ -64,7 +67,7 @@ class Bot(commands.Bot):
         )
 
         try:
-            response = self.supabase.table("meals").select("*").execute()
+            response = await self.supabase.table("meals").select("*").execute()
             self.meal_cache = response.data
             print(f"Cached {len(self.meal_cache)} meals")
         except Exception as e:

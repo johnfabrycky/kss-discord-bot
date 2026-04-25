@@ -14,7 +14,7 @@ def make_query(result):
     query.insert.return_value = query
     query.eq.return_value = query
     query.in_.return_value = query
-    query.execute.return_value = SimpleNamespace(data=result)
+    query.execute = AsyncMock(return_value=SimpleNamespace(data=result))
     return query
 
 

@@ -53,16 +53,24 @@ class LatesService:
     async def get_visible_lates(self, house, day, meal):
         """Return lates visible to the caller's house grouping for one meal."""
         target_roles = ["koinonian"] if house == "koinonian" else ["stratfordite", "suttonite"]
-        res = await self.run_supabase(
-            self.supabase.table("lates").select("*").eq("day_of_week", day).eq("meal", meal).in_("role", target_roles)
-        )
+        res = await self.supabase.table("lates") \
+            .select("*") \
+            .eq("day_of_week", day) \
+            .eq("meal", meal) \
+            .in_("role", target_roles) \
+            .execute()
+
         return res.data or []
 
     async def create_late(self, user_id, display_name, house, day, meal, is_permanent):
         """Create a new late request unless the same request already exists."""
-        existing = await self.run_supabase(
-            self.supabase.table("lates").select("*").eq("user_id", str(user_id)).eq("day_of_week", day).eq("meal", meal)
-        )
+        existing = await self.supabase.table("lates") \
+            .select("*") \
+            .eq("user_id", str(user_id)) \
+            .eq("day_of_week", day) \
+            .eq("meal", meal) \
+            .execute()
+
         if existing.data:
             return False, "duplicate"
 
@@ -74,25 +82,34 @@ class LatesService:
             "day_of_week": day,
             "is_permanent": is_permanent,
         }
-        await self.run_supabase(self.supabase.table("lates").insert(payload))
+        await self.supabase.table("lates").insert(payload).execute()
         return True, payload
 
     async def get_autocomplete_lates(self, user_id):
         """Return a caller's lates for autocomplete display."""
-        res = await self.run_supabase(
-            self.supabase.table("lates").select("day_of_week", "meal", "is_permanent").eq("user_id", str(user_id)),
-            timeout=2.5,
-        )
+        res = await self.supabase.table("lates") \
+            .select("day_of_week", "meal", "is_permanent") \
+            .eq("user_id", str(user_id)) \
+            .execute()
+
         return res.data or []
 
     async def clear_late(self, user_id, day, meal):
         """Delete one late request for the caller."""
-        res = await self.run_supabase(
-            self.supabase.table("lates").delete().eq("user_id", str(user_id)).eq("day_of_week", day).eq("meal", meal)
-        )
+        res = await self.supabase.table("lates") \
+            .delete() \
+            .eq("user_id", str(user_id)) \
+            .eq("day_of_week", day) \
+            .eq("meal", meal) \
+            .execute()
+
         return bool(res.data)
 
     async def get_user_lates(self, user_id):
         """Fetch all active late requests for one caller."""
-        res = await self.run_supabase(self.supabase.table("lates").select("*").eq("user_id", str(user_id)))
+        res = await self.supabase.table("lates") \
+            .select("*") \
+            .eq("user_id", str(user_id)) \
+            .execute()
+
         return res.data or []

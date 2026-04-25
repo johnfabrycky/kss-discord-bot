@@ -60,8 +60,8 @@ class MealsServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.service.calculate_rotation_week(current_date), 2)
 
     async def test_refresh_calendar_config_loads_from_supabase(self):
-        # Mock the chained Supabase response: table().select().eq().execute()
-        mock_execute = self.supabase.table.return_value.select.return_value.eq.return_value.execute
+        # Create an AsyncMock for the execute method
+        mock_execute = AsyncMock()
         mock_execute.return_value = SimpleNamespace(
             data=[{
                 "semester_start": "2026-01-19T00:00:00-06:00",
@@ -74,6 +74,9 @@ class MealsServiceTests(unittest.IsolatedAsyncioTestCase):
                 }]
             }]
         )
+
+        # Attach the AsyncMock to the end of the Supabase query chain
+        self.supabase.table.return_value.select.return_value.eq.return_value.execute = mock_execute
 
         success = await self.service.refresh_calendar_config()
 
