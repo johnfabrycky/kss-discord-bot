@@ -1,0 +1,1 @@
+4/24/2026 Upgrade to a persistent database connection to reduce database latency from close to 1s down to 80 ms.
