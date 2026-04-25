@@ -22,7 +22,6 @@ class ParkingService:
 
         self._claim_autocomplete_cache = None
         self._cancel_autocomplete_cache = {}
-        self._offer_spot_preference_cache = {}
 
         self._spot_mutation_locks = {}
         self._staff_mutation_lock = asyncio.Lock()
@@ -52,10 +51,6 @@ class ParkingService:
         entry = (time.monotonic(), payload)
         if cache_name == "claim":
             self._claim_autocomplete_cache = entry
-            return
-
-        if cache_name == "offer_preference":
-            self._offer_spot_preference_cache[key] = entry
             return
 
         self._cancel_autocomplete_cache[key] = entry

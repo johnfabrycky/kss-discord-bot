@@ -26,10 +26,6 @@ class LatesService:
             return "suttonite"
         return None
 
-    async def run_supabase(self, query, timeout=10):
-        """Execute a blocking Supabase query off the event loop."""
-        return await asyncio.wait_for(asyncio.to_thread(query.execute), timeout=timeout)
-
     async def perform_cleanup(self, day_to_clean=None):
         """Delete temporary lates for a specific day or for all days."""
         try:
@@ -37,7 +33,7 @@ class LatesService:
             if day_to_clean:
                 query = query.eq("day_of_week", day_to_clean)
 
-            res = await self.run_supabase(query, timeout=20)
+            res = await query.execute()
             count = len(res.data) if res.data else 0
 
             ping_url = os.getenv("HEALTHCHECK_URL")

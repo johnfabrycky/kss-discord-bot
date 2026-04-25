@@ -198,21 +198,27 @@ class Parking(commands.Cog):
             now = datetime.now(LOCAL_TZ)
             guest_spots, offered_spots, claims = await self.service.get_claim_autocomplete_data(now)
 
+            # Pre-process claims into a dictionary for efficient lookups
+            claims_by_spot = {}
+            for row in claims or []:
+                claims_by_spot.setdefault(row["spot_number"], []).append(
+                    (
+                        datetime.fromisoformat(row["start_time"]).astimezone(LOCAL_TZ),
+                        datetime.fromisoformat(row["end_time"]).astimezone(LOCAL_TZ),
+                    )
+                )
+
             def has_overlapping_claim(spot_num):
-                for row in claims or []:
-                    if row["spot_number"] != spot_num:
-                        continue
-                    claim_start = datetime.fromisoformat(row["start_time"]).astimezone(LOCAL_TZ)
-                    claim_end = datetime.fromisoformat(row["end_time"]).astimezone(LOCAL_TZ)
-                    if claim_start < end and claim_end > start:
+                for claim_start, claim_end in claims_by_spot.get(spot_num, []):
+                    if claim_start < end and claim_end > start:  # Check for overlap
                         return True
                 return False
 
-            available_spots = {
-                row["spot_number"]: "Guest"
-                for row in guest_spots or []
-                if not has_overlapping_claim(row["spot_number"])
-            }
+            available_spots = {}
+            for row in guest_spots or []:
+                if not has_overlapping_claim(row["spot_number"]):
+                    available_spots[row["spot_number"]] = "Guest"
+
             for row in offered_spots or []:
                 offer_start = datetime.fromisoformat(row["start_time"]).astimezone(LOCAL_TZ)
                 offer_end = datetime.fromisoformat(row["end_time"]).astimezone(LOCAL_TZ)
