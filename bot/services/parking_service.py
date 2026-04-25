@@ -721,9 +721,9 @@ class ParkingService:
         if active_block:
             if active_block[1] >= cutoff:
                 if not is_resident:
-                    # Guest spots reset at 12 AM (Sun-Thu) or 2 AM (Fri-Sat)
-                    reset_hour = 2 if (now.weekday() == 4 or now.weekday() == 5) else 0
-                    header = f"🟢 Available Now (until {reset_hour % 12 or 12} AM)"
+                    # Staff spots reset at 12 AM (Sun-Thu) or 2 AM (Fri-Sat)
+                    reset_time_string = "Sun 2 AM"  if (now.weekday() == 4 or now.weekday() == 5 or (now.weekday() == 6 and now.hour < 2)) else "12 AM"
+                    header = f"🟢 Available Now (until {reset_time_string})"
                 else:
                     header = "🟢 Available Now (All Week)"
             else:
