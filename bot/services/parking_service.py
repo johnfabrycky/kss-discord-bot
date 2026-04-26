@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import time
 from datetime import datetime, timedelta
 
 from dateutil.relativedelta import relativedelta
@@ -399,15 +398,22 @@ class ParkingService:
             return True, f"🔄 Reservation for {spot_label} cancelled.", None
 
     async def get_user_activity(self, user_id):
-        """Fetch active offers and reservations for a specific user."""
+        """Fetch active offers and reservations for a specific user instantly from memory."""
         now_iso = datetime.now(LOCAL_TZ).isoformat()
-        offers_task = self.supabase.table("parking_offers").select("*").eq("owner_id", str(user_id)).gt("end_time",
-                                                                                                        now_iso).execute()
-        claims_task = self.supabase.table("parking_reservations").select("*").eq("claimer_id", str(user_id)).gt(
-            "end_time", now_iso).execute()
+        user_str = str(user_id)
 
-        offers, claims = await asyncio.gather(offers_task, claims_task)
-        return offers.data, claims.data
+        # Filter the global cache instead of querying Supabase
+        user_offers = [
+            offer for offer in self.active_offers_cache
+            if offer["owner_id"] == user_str and offer["end_time"] > now_iso
+        ]
+
+        user_claims = [
+            claim for claim in self.active_claims_cache
+            if claim["claimer_id"] == user_str and claim["end_time"] > now_iso
+        ]
+
+        return user_offers, user_claims
 
     async def get_cancel_autocomplete_data(self, user_id, now):
         """Fetch active offers and reservations for cancel autocomplete instantly from memory."""
@@ -500,7 +506,8 @@ class ParkingService:
             if active_block[1] >= cutoff:
                 if not is_resident:
                     # Staff spots reset at 12 AM (Sun-Thu) or 2 AM (Fri-Sat)
-                    reset_time_string = "Sun 2 AM"  if (now.weekday() == 4 or now.weekday() == 5 or (now.weekday() == 6 and now.hour < 2)) else "12 AM"
+                    reset_time_string = "Sun 2 AM" if (now.weekday() == 4 or now.weekday() == 5 or (
+                                now.weekday() == 6 and now.hour < 2)) else "12 AM"
                     header = f"🟢 Available Now (until {reset_time_string})"
                 else:
                     header = "🟢 Available Now (All Week)"

@@ -389,7 +389,8 @@ class Parking(commands.Cog):
             staff_offers = self.service.get_staff_availability_windows(now, staff_cutoff)
             for i, spot_num in enumerate(STAFF_SPOTS):
                 spot_claims = sorted(claims_db.get(spot_num, []), key=lambda x: x["start"])
-                header, blocks = self.service.get_merged_availability(now, staff_cutoff, staff_offers, spot_claims, is_resident=False)
+                header, blocks = self.service.get_merged_availability(now, staff_cutoff, staff_offers, spot_claims,
+                                                                      is_resident=False)
 
                 if not blocks:
                     staff_lines.append(f"**Spot {i + 1}**: {header}")

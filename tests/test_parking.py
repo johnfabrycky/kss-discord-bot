@@ -337,7 +337,6 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
 
         embed = interaction.response.send_message.await_args.kwargs["embed"]
 
-
         self.assertNotIn("Spot 10", embed.fields[0].value)
 
     def test_get_merged_availability_shows_all_week(self):
