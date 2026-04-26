@@ -216,9 +216,7 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
 
         await parking_module.Parking.my_parking.callback(self.cog, interaction)
 
-        interaction.response.defer.assert_awaited_once_with(ephemeral=True)
-        interaction.followup.send.assert_awaited_once()
-        embed = interaction.followup.send.await_args.kwargs["embed"]
+        embed = interaction.response.send_message.await_args.kwargs["embed"]
         self.assertEqual(embed.title, "📋 My Parking Activity")
         self.assertIn("Spot 10", embed.fields[0].value)
         self.assertIn("Spot", embed.fields[1].value)
