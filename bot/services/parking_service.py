@@ -14,14 +14,9 @@ logger = logging.getLogger(__name__)
 class ParkingService:
     """Database-backed business logic for the parking system."""
 
-    AUTOCOMPLETE_CACHE_TTL_SECONDS = 5
-
     def __init__(self, supabase: AsyncClient):
         """Use the shared async Supabase client."""
         self.supabase = supabase
-
-        self._claim_autocomplete_cache = None
-        self._cancel_autocomplete_cache = {}
 
         self._spot_mutation_locks = {}
         self._staff_mutation_lock = asyncio.Lock()
@@ -53,25 +48,6 @@ class ParkingService:
         if spot in STAFF_SPOTS:
             return self._staff_mutation_lock
         return self._spot_mutation_locks.setdefault(int(spot), asyncio.Lock())
-
-    def _get_cached_value(self, cache_entry):
-        """Return a cached autocomplete payload when it is still fresh."""
-        if not cache_entry:
-            return None
-
-        cached_at, payload = cache_entry
-        if (time.monotonic() - cached_at) <= self.AUTOCOMPLETE_CACHE_TTL_SECONDS:
-            return payload
-        return None
-
-    def _store_cache_value(self, cache_name, key, payload):
-        """Persist a short-lived autocomplete payload in memory."""
-        entry = (time.monotonic(), payload)
-        if cache_name == "claim":
-            self._claim_autocomplete_cache = entry
-            return
-
-        self._cancel_autocomplete_cache[key] = entry
 
     async def save_offer_spot_preference(self, user_id, username, spot):
         """Persist the caller's last successful offer spot without failing the command."""
@@ -434,44 +410,41 @@ class ParkingService:
         return offers.data, claims.data
 
     async def get_cancel_autocomplete_data(self, user_id, now):
-        """Fetch active offers and reservations for cancel autocomplete."""
-        cached = self._get_cached_value(self._cancel_autocomplete_cache.get(str(user_id)))
-        if cached is not None:
-            return cached
+        """Fetch active offers and reservations for cancel autocomplete instantly from memory."""
+        now_iso = now.isoformat()
+        user_str = str(user_id)
 
-        try:
-            offers_task = self.supabase.table("parking_offers").select("*").eq("owner_id", str(user_id)).gt("end_time",
-                                                                                                            now.isoformat()).execute()
-            claims_task = self.supabase.table("parking_reservations").select("*").eq("claimer_id", str(user_id)).gt(
-                "end_time", now.isoformat()).execute()
+        # Filter the global cache instead of querying Supabase
+        user_offers = [
+            offer for offer in self.active_offers_cache
+            if offer["owner_id"] == user_str and offer["end_time"] > now_iso
+        ]
 
-            offers, claims = await asyncio.gather(offers_task, claims_task)
-            payload = (offers.data, claims.data)
-            self._store_cache_value("cancel", str(user_id), payload)
-            return payload
-        except Exception:
-            return [], []
+        user_claims = [
+            claim for claim in self.active_claims_cache
+            if claim["claimer_id"] == user_str and claim["end_time"] > now_iso
+        ]
+
+        return user_offers, user_claims
 
     async def get_claim_autocomplete_data(self, now):
-        """Fetch guest spots, active offers, and active claims for claim autocomplete."""
-        cached = self._get_cached_value(self._claim_autocomplete_cache)
-        if cached is not None:
-            return cached
+        """Fetch guest spots, active offers, and active claims for claim autocomplete instantly from memory."""
+        now_iso = now.isoformat()
 
-        try:
-            offers_task = self.supabase.table("parking_offers").select("spot_number,start_time,end_time").gt("end_time",
-                                                                                                             now.isoformat()).execute()
-            claims_task = self.supabase.table("parking_reservations").select("spot_number,start_time,end_time").gt(
-                "end_time", now.isoformat()).execute()
+        # Filter the global cache
+        valid_offers = [
+            offer for offer in self.active_offers_cache
+            if offer["end_time"] > now_iso
+        ]
 
-            offers, claims = await asyncio.gather(offers_task, claims_task)
-            guest_spots = [{"spot_number": spot} for spot in self.guest_spots_cache]
+        valid_claims = [
+            claim for claim in self.active_claims_cache
+            if claim["end_time"] > now_iso
+        ]
 
-            payload = (guest_spots, offers.data, claims.data)
-            self._store_cache_value("claim", None, payload)
-            return payload
-        except Exception:
-            return [], [], []
+        guest_spots = [{"spot_number": spot} for spot in self.guest_spots_cache]
+
+        return guest_spots, valid_offers, valid_claims
 
     async def get_guest_spot_list(self) -> str:
         """Return the formatted string directly from the local cache."""
