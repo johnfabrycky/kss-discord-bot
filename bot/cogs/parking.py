@@ -325,8 +325,6 @@ class Parking(commands.Cog):
                 await interaction.response.send_message(embed=cached_embed, ephemeral=True)
                 return
 
-            await interaction.response.defer(ephemeral=True)
-
             now = datetime.now(LOCAL_TZ).replace(minute=0, second=0, microsecond=0)
             resident_cutoff = now + timedelta(days=7)
             raw_offers, raw_claims, guest_spots = await self.service.get_parking_data(now, resident_cutoff)
@@ -426,7 +424,7 @@ class Parking(commands.Cog):
             embed.set_footer(text=f"{BOT_NAME} Parking System - Chicago Time")
             self._store_cached_parking_status_embed(embed)
 
-        await interaction.followup.send(embed=self._clone_embed(embed), ephemeral=True)
+        await interaction.response.send_message(embed=self._clone_embed(embed), ephemeral=True)
 
     async def cancel_spot_autocomplete(
             self,
@@ -520,7 +518,6 @@ class Parking(commands.Cog):
     @app_commands.command(name="parking_help", description="How to use the parking system")
     async def parking_help(self, interaction: discord.Interaction):
         """Send an overview of parking commands, rules, and guest spot details."""
-        await interaction.response.defer(ephemeral=True)
         guest_list_str = await self.service.get_guest_spot_list()
 
         embed = discord.Embed(
@@ -562,7 +559,7 @@ class Parking(commands.Cog):
             inline=False,
         )
         embed.set_footer(text=f"{BOT_NAME} Parking System - Chicago Time")
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 async def setup(bot):

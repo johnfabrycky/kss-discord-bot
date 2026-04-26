@@ -275,9 +275,7 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
 
             await parking_module.Parking.parking_status.callback(self.cog, interaction)
 
-        interaction.response.defer.assert_awaited_once_with(ephemeral=True)
-        interaction.followup.send.assert_awaited_once()
-        embed = interaction.followup.send.await_args.kwargs["embed"]
+        embed = interaction.response.send_message.await_args.kwargs["embed"]
         self.assertIsInstance(embed, discord.Embed)
         self.assertEqual(embed.title, "Parking Status")
 
@@ -307,9 +305,7 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
 
             await parking_module.Parking.parking_status.callback(self.cog, interaction)
 
-        interaction.response.defer.assert_awaited_once_with(ephemeral=True)
-        interaction.followup.send.assert_awaited_once()
-        embed = interaction.followup.send.await_args.kwargs["embed"]
+        embed = interaction.response.send_message.await_args.kwargs["embed"]
 
         self.assertEqual(embed.fields[1].name, "Staff Parking (Today)")
         self.assertIn("**Spot 1**: ❌ Fully Booked", embed.fields[1].value)
@@ -339,9 +335,8 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
 
             await parking_module.Parking.parking_status.callback(self.cog, interaction)
 
-        interaction.response.defer.assert_awaited_once_with(ephemeral=True)
-        interaction.followup.send.assert_awaited_once()
-        embed = interaction.followup.send.await_args.kwargs["embed"]
+        embed = interaction.response.send_message.await_args.kwargs["embed"]
+
 
         self.assertNotIn("Spot 10", embed.fields[0].value)
 
@@ -427,9 +422,7 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
 
         await parking_module.Parking.parking_help.callback(self.cog, interaction)
 
-        interaction.response.defer.assert_awaited_once_with(ephemeral=True)
-        interaction.followup.send.assert_awaited_once()
-        embed = interaction.followup.send.await_args.kwargs["embed"]
+        embed = interaction.response.send_message.await_args.kwargs["embed"]
         self.assertEqual(embed.title, "🚗 Parking System Guide")
         self.assertIn("Guest Spot(s): 46", embed.fields[1].value)
         self.assertIn("All parking spots are 1-33 and 41-46.", embed.fields[1].value)
