@@ -3,6 +3,7 @@
 import logging
 import math
 import os
+import time
 
 import discord
 from discord import app_commands
@@ -162,6 +163,51 @@ async def clear_ghosts(ctx):
     bot.tree.clear_commands(guild=None)
     await bot.tree.sync()
     await ctx.send("👻 Ghost commands cleared! The duplicate should vanish shortly.")
+
+
+@bot.command(name="audit")
+@commands.is_owner()  # Keeps this tool restricted to you
+async def audit_latency(ctx):
+    """Measures Gateway, REST, and Database latency in one sequence."""
+
+    # 1. Gateway Latency (Heartbeat)
+    gateway_lat = round(bot.latency * 1000)
+
+    # 2. Database Latency (Supabase)
+    # Crucial change: Using your bot's async supabase client
+    db_start = time.perf_counter()
+    try:
+        if bot.supabase is None:
+            raise ValueError("Supabase client not initialized")
+
+        await bot.supabase.table("parking").select("*").limit(1).execute()
+        db_end = time.perf_counter()
+        db_lat = round((db_end - db_start) * 1000)
+        db_status = f"{db_lat}ms"
+    except Exception as e:
+        db_status = f"Error: {type(e).__name__}"
+        db_lat = 0
+
+    # 3. REST API Latency (Round-trip)
+    rest_start = time.perf_counter()
+    msg = await ctx.send("⚙️ Auditing system performance...")
+    rest_end = time.perf_counter()
+    rest_lat = round((rest_end - rest_start) * 1000)
+
+    # 4. Displaying Results
+    embed = discord.Embed(
+        title="🛰️ System Audit",
+        description="Performance check for database and API routing.",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="Gateway (WS)", value=f"`{gateway_lat}ms`", inline=True)
+    embed.add_field(name="REST API", value=f"`{rest_lat}ms`", inline=True)
+    embed.add_field(name="Supabase DB", value=f"`{db_status}`", inline=True)
+
+    total_latency = gateway_lat + rest_lat + db_lat
+    embed.set_footer(text=f"Total perceived delay: ~{total_latency}ms")
+
+    await msg.edit(content=None, embed=embed)
 
 
 @bot.tree.command(name="help", description="List all available commands and bot info")
