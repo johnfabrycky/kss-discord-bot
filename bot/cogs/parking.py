@@ -93,8 +93,6 @@ class Parking(commands.Cog):
     @app_commands.command(name="my_parking", description="View your active offers and reservations")
     async def my_parking(self, interaction: discord.Interaction):
         """Show the caller's active offers and reservations in one ledger."""
-        await interaction.response.defer(ephemeral=True)
-
         user_id = str(interaction.user.id)
         now = datetime.now(LOCAL_TZ)
         raw_offers, raw_claims = await self.service.get_user_activity(user_id)
@@ -123,7 +121,7 @@ class Parking(commands.Cog):
         embed.add_field(name="📥 My Reservations", value="\n".join(claim_lines) or "No active reservations.",
                         inline=False)
 
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(name="offer_spot", description="List your spot as available")
     @app_commands.choices(start_day=day_choices, end_day=day_choices, start_time=time_choices, end_time=time_choices)
