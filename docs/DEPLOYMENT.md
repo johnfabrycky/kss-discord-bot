@@ -78,3 +78,19 @@ The bot should now be online and ready to respond to commands in your Discord se
     - Set the monitor interval to 5 minutes to keep the free service from spinning down.
 
 Your bot is now deployed and will be kept online by UptimeRobot.
+
+---
+
+## 🚨 Troubleshooting
+
+First, go to the [Render](https://dashboard.render.com/) page for the Discord Web Bot, go to Logs, and see if there are
+any error logs that
+indicate why the service may have gone down. If there are, use those to troubleshoot. If you lack the expertise
+to fix the errors, you may at least be able to identify the functions that are causing issues and create a temporary
+PR to remove that functionality so that the bot will function properly while the issue can be resolved.
+
+If there are no error messages in the logs, find the monitor link (see "How to host the bot" below), and open
+the link in a new tab. Wait for it to build properly. Once you can refresh the monitor link and there are no
+building messages, but it just says "I'm alive", that indicates the service is back up.
+
+Sometimes down events just happen, and often they can be easily resolved just by pinging the monitor link.
