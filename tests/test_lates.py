@@ -63,7 +63,8 @@ class LatesCogTests(unittest.IsolatedAsyncioTestCase):
 
         await lates_module.Lates.view_lates.callback(self.cog, interaction, "Monday", "Lunch")
 
-        interaction.followup.send.assert_awaited_once_with("❌ No house role detected.", ephemeral=True)
+        # Now uses response.send_message instead of followup
+        interaction.response.send_message.assert_awaited_once_with("❌ No house role detected.", ephemeral=True)
 
     async def test_view_lates_formats_visible_lates(self):
         self.cog.service.get_user_house.return_value = "koinonian"
@@ -75,8 +76,8 @@ class LatesCogTests(unittest.IsolatedAsyncioTestCase):
 
         await lates_module.Lates.view_lates.callback(self.cog, interaction, "Monday", "Dinner")
 
-        interaction.followup.send.assert_awaited_once()
-        embed = interaction.followup.send.await_args.kwargs["embed"]
+        # Extracts embed from initial response, not followup
+        embed = interaction.response.send_message.await_args.kwargs["embed"]
         self.assertEqual(embed.title, "🍽️ Lates: Monday Dinner (2 total)")
         self.assertIn("**Alice**", embed.description)
         self.assertIn("**Bob**", embed.description)
@@ -88,6 +89,7 @@ class LatesCogTests(unittest.IsolatedAsyncioTestCase):
 
         await lates_module.Lates.late_me.callback(self.cog, interaction, "Monday", "Lunch", "False")
 
+        # late_me still defers, so followup is correct
         interaction.followup.send.assert_awaited_once_with("❌ You already have a late for this meal.", ephemeral=True)
 
     async def test_late_me_inserts_new_request(self):
@@ -131,15 +133,15 @@ class LatesCogTests(unittest.IsolatedAsyncioTestCase):
 
         await lates_module.Lates.my_lates.callback(self.cog, interaction)
 
-        interaction.followup.send.assert_awaited_once()
-        embed = interaction.followup.send.await_args.kwargs["embed"]
+        # my_lates no longer defers, extract embed from response.send_message
+        embed = interaction.response.send_message.await_args.kwargs["embed"]
         self.assertEqual(embed.title, "📋 Your Registered Lates")
         self.assertIn("Wednesday Lunch", embed.description)
         self.assertIn("Thursday Dinner", embed.description)
 
 
 class LatesServiceTests(unittest.IsolatedAsyncioTestCase):
-    """Unit tests for late-plate service rules and data access."""
+    """Unit tests for late-plate service rules and in-memory cache data access."""
 
     def setUp(self):
         self.supabase = MagicMock()
@@ -151,19 +153,22 @@ class LatesServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.service.get_user_house(member), "koinonian")
 
     async def test_create_late_blocks_duplicate_request(self):
-        select_query = make_query([{"id": 1}])
-        self.supabase.table.return_value = select_query
-        self.supabase.table.side_effect = None
+        # Seed the local cache to trigger the 0ms duplicate block
+        self.service.lates_cache = [{"user_id": "1234", "day_of_week": "Monday", "meal": "Lunch"}]
 
         success, reason = await self.service.create_late(1234, "Tester", "koinonian", "Monday", "Lunch", False)
 
         self.assertFalse(success)
         self.assertEqual(reason, "duplicate")
 
-    async def test_create_late_inserts_new_request(self):
-        select_query = make_query([])
+    async def test_create_late_inserts_new_request_and_syncs_cache(self):
+        # Empty cache means no duplicates found
+        self.service.lates_cache = []
         insert_query = make_query([{"id": 2}])
-        self.supabase.table.side_effect = [select_query, insert_query]
+        self.supabase.table.return_value = insert_query
+
+        # Prevent the test from making a real DB call during the cache sync
+        self.service.refresh_lates_cache = AsyncMock()
 
         success, payload = await self.service.create_late(77, "Casey", "suttonite", "Tuesday", "Dinner", True)
 
@@ -179,13 +184,22 @@ class LatesServiceTests(unittest.IsolatedAsyncioTestCase):
                 "is_permanent": True,
             }
         )
+        # Verify the service triggered a cache refresh after the successful write
+        self.service.refresh_lates_cache.assert_awaited_once()
 
     async def test_get_visible_lates_uses_house_grouping(self):
-        query = make_query([{"nickname": "Alice", "is_permanent": True}])
-        self.supabase.table.return_value = query
-        self.supabase.table.side_effect = None
+        # Pre-populate the memory cache with test data
+        self.service.lates_cache = [
+            {"nickname": "Alice", "role": "koinonian", "day_of_week": "Monday", "meal": "Dinner", "is_permanent": True},
+            {"nickname": "Bob", "role": "suttonite", "day_of_week": "Monday", "meal": "Dinner", "is_permanent": False},
+            {"nickname": "Charlie", "role": "koinonian", "day_of_week": "Tuesday", "meal": "Dinner",
+             "is_permanent": True}
+        ]
 
+        # Fetch koinonian lates for Monday Dinner
         rows = await self.service.get_visible_lates("koinonian", "Monday", "Dinner")
 
-        self.assertEqual(rows, [{"nickname": "Alice", "is_permanent": True}])
-        query.in_.assert_called_once_with("role", ["koinonian"])
+        # Should only find Alice (Bob is wrong house, Charlie is wrong day)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["nickname"], "Alice")
+        self.assertTrue(rows[0]["is_permanent"])

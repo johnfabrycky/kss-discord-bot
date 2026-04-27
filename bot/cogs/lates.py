@@ -23,6 +23,10 @@ class Lates(commands.Cog):
         self.meals = ["Lunch", "Dinner"]
         self.cleanup_loop.start()
 
+    async def cog_load(self):
+        """Initialize the lates cache when the Cog boots up."""
+        await self.service.refresh_lates_cache()
+
     def _get_user_house(self, member: discord.Member):
         """Return the caller's house role slug, if present."""
         return self.service.get_user_house(member)
@@ -65,12 +69,10 @@ class Lates(commands.Cog):
         meal=[app_commands.Choice(name="Lunch", value="Lunch"), app_commands.Choice(name="Dinner", value="Dinner")],
     )
     async def view_lates(self, interaction: discord.Interaction, day: str, meal: str):
-        """Show late requests visible to the caller's house group for one meal."""
-        await interaction.response.defer(ephemeral=True)
-
+        """Show late requests visible to the caller's house group instantly from memory."""
         house = self._get_user_house(interaction.user)
         if not house:
-            return await interaction.followup.send("❌ No house role detected.", ephemeral=True)
+            return await interaction.response.send_message("❌ No house role detected.", ephemeral=True)
 
         filtered_list = []
         for info in await self.service.get_visible_lates(house, day, meal):
@@ -79,7 +81,7 @@ class Lates(commands.Cog):
 
         total_count = len(filtered_list)
         if total_count == 0:
-            return await interaction.followup.send(
+            return await interaction.response.send_message(
                 f"No lates recorded for **{day} {meal}** in your house group.",
                 ephemeral=True,
             )
@@ -89,7 +91,7 @@ class Lates(commands.Cog):
             description="\n".join(filtered_list),
             color=discord.Color.blue(),
         )
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(name="late_me", description="Request food to be set aside")
     @app_commands.choices(
@@ -101,6 +103,7 @@ class Lates(commands.Cog):
     )
     async def late_me(self, interaction: discord.Interaction, day: str, meal: str, duration: str):
         """Create a temporary or permanent late request for the caller."""
+        # Defer is kept here because this is a database WRITE
         await interaction.response.defer(ephemeral=True)
 
         house = self._get_user_house(interaction.user)
@@ -125,7 +128,7 @@ class Lates(commands.Cog):
             interaction: discord.Interaction,
             current: str,
     ) -> list[app_commands.Choice[str]]:
-        """Return the caller's existing lates as autocomplete choices."""
+        """Return the caller's existing lates instantly from memory as autocomplete choices."""
         try:
             rows = await self.service.get_autocomplete_lates(interaction.user.id)
         except Exception:
@@ -149,6 +152,7 @@ class Lates(commands.Cog):
     @app_commands.autocomplete(selection=late_days_autocomplete)
     async def clear_late(self, interaction: discord.Interaction, selection: str):
         """Delete one late request selected from autocomplete."""
+        # Defer is kept here because this is a database WRITE
         await interaction.response.defer(ephemeral=True)
 
         user_id = str(interaction.user.id)
@@ -167,23 +171,24 @@ class Lates(commands.Cog):
 
     @app_commands.command(name="my_lates", description="See all the meals you've requested lates for")
     async def my_lates(self, interaction: discord.Interaction):
-        """List every currently active late request owned by the caller."""
-        await interaction.response.defer(ephemeral=True)
-
+        """List every currently active late request owned by the caller instantly from memory."""
         rows = await self.service.get_user_lates(interaction.user.id)
+
         if not rows:
-            return await interaction.followup.send("You don't have any active lates.", ephemeral=True)
+            return await interaction.response.send_message("You don't have any active lates.", ephemeral=True)
 
         found_lates = [
             f"• **{row['day_of_week']} {row['meal']}**: {'🔄 Permanent' if row['is_permanent'] else '⏱️ This week'}"
             for row in rows
         ]
+
         embed = discord.Embed(
             title="📋 Your Registered Lates",
             description="\n".join(found_lates),
             color=discord.Color.green(),
         )
-        await interaction.followup.send(embed=embed, ephemeral=True)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 async def setup(bot):
