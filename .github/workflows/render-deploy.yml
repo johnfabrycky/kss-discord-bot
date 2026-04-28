@@ -11,37 +11,37 @@ jobs:
     steps:
       - name: Update Secrets on Render
         run: |
-           curl --request PUT \
-               --url https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/env-vars \
-               --header 'Accept: application/json' \
-               --header 'Authorization: Bearer ${{ secrets.RENDER_API_KEY }}' \
-               --header 'Content-Type: application/json' \
-               --data '[
-                   {
-                     "envVar": {
-                       "key": "DISCORD_TOKEN",
-                       "value": "${{ secrets.DISCORD_TOKEN }}"
-                     }
-                   },
-                   {
-                     "envVar": {
-                       "key": "SUPABASE_RULE",
-                       "value": "${{ secrets.SUPABASE_RULE }}"
-                     }
-                   },
-                   {
-                     "envVar": {
-                       "key": "SUPABASE_SERVICE_KEY",
-                       "value": "${{ secrets.SUPABASE_SERVICE_KEY }}"
-                     }
-                   },
-                   {
-                     "envVar": {
-                       "key": "HEALTHCHECK_URL",
-                       "value": "${{ secrets.HEALTHCHECK_URL }}"
-                     }
-                   }
-                 ]'
+          curl --request PUT \
+              --url https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/env-vars \
+              --header 'Accept: application/json' \
+              --header 'Authorization: Bearer ${{ secrets.RENDER_API_KEY }}' \
+              --header 'Content-Type: application/json' \
+              --data '[
+                  {
+                    "envVar": {
+                      "key": "DISCORD_TOKEN",
+                      "value": "${{ secrets.DISCORD_TOKEN }}"
+                    }
+                  },
+                  {
+                    "envVar": {
+                      "key": "SUPABASE_RULE",
+                      "value": "${{ secrets.SUPABASE_RULE }}"
+                    }
+                  },
+                  {
+                    "envVar": {
+                      "key": "SUPABASE_SERVICE_KEY",
+                      "value": "${{ secrets.SUPABASE_SERVICE_KEY }}"
+                    }
+                  },
+                  {
+                    "envVar": {
+                      "key": "HEALTHCHECK_URL",
+                      "value": "${{ secrets.HEALTHCHECK_URL }}"
+                    }
+                  }
+                ]'
       - name: Update Secrets on Render
         run: |
           curl --request PUT \

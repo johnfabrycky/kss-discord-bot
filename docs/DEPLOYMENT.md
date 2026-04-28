@@ -26,7 +26,7 @@ This guide explains how to deploy and run the Discord bot, both locally for deve
 3. **Set up environment variables:**
    Create a `.env` file in the root of the project and add the following variables:
    ```
-   DISCORD_BOT_TOKEN=your_discord_bot_token
+   DISCORD_TOKEN=your_discord_bot_token
    SUPABASE_URL=your_supabase_url
    SUPABASE_SERVICE_KEY=your_supabase_service_key
    ```
@@ -62,11 +62,8 @@ The bot should now be online and ready to respond to commands in your Discord se
     - Choose the free tier for hobby projects.
 
 2. **Configure Environment Variables:**
-   In the "Environment" section of your Render service, add the following variables:
-    - `DISCORD_BOT_TOKEN`: Your Discord bot token.
-    - `SUPABASE_URL`: Your Supabase project's API URL.
-    - `SUPABASE_SERVICE_KEY`: Your Supabase project's service key.
-    - `HEALTHCHECK_URL`: The URL for your "Midnight Cleanup" check from Healthchecks.io.
+   Consult the env.example file to see the environment variables to add in the "Environment" section of your Render
+   service.
 
 3. **Deploy the Bot:**
     - Go to the "Events" tab and click "Manual Deploy" -> "Deploy latest commit".
