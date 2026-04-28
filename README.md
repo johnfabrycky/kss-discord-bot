@@ -61,6 +61,23 @@ requests.
 
 *(Placeholder for screenshots or GIFs of the bot in action)*
 
+## 🤖 Bot Invitation
+
+To add the bot to your Discord server, use the following invitation link. This link includes the necessary permissions
+for the bot to function correctly.
+
+The necessary scopes are:
+bot
+applications.commands
+
+The necessary permissions are:
+Text Permissions:
+Send Messages
+Embed Links
+Read Message History
+
+[Add Bot to Server](https://discord.com/oauth2/authorize?client_id=1470458488655446158&permissions=83968&integration_type=0&scope=bot+applications.commands)
+
 ## 📡 Deployment
 
 For detailed instructions on how to deploy the bot, both locally and on the cloud, please see
