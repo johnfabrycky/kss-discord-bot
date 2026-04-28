@@ -3,6 +3,7 @@
 A multi-functional Discord bot designed to automate community scheduling and operations for the KSS community.
 
 [![Uptime Robot status](https://img.shields.io/uptimerobot/status/m802769392-700b320fddc46141dabd5b77)](https://stats.uptimerobot.com/xcdwYvPfdq)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/johnfabrycky/kss-discord-bot)
 
 ## 🚀 Features
 
