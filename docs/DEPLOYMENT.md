@@ -20,7 +20,7 @@ This guide explains how to deploy and run the Discord bot, both locally for deve
 
 2. **Install dependencies:**
    ```bash
-   pip install -r requirements.txt
+   pip install -r ../requirements.txt
    ```
 
 3. **Set up environment variables:**
@@ -33,7 +33,8 @@ This guide explains how to deploy and run the Discord bot, both locally for deve
    You can find the Supabase URL and service key in your Supabase project settings.
 
 4. **Set up the database:**
-   In your Supabase project, go to the "SQL Editor" and run the SQL scripts located in the `docs/sql/` directory in the following order:
+   In your Supabase project, go to the "SQL Editor" and run the SQL scripts located in the `docs/sql/` directory in the
+   following order:
     1. `01_parking.sql`
     2. `02_meals.sql`
     3. `03_lates.sql`
@@ -56,25 +57,22 @@ The bot should now be online and ready to respond to commands in your Discord se
 ### 1. Prerequisites
 
 - A [Supabase](https://supabase.com/) account with access to the project's organization.
-- A [Render](https://dashboard.render.com/) account.
+- A [Render](https://dashboard.render.com/) account with a Web Service connected to your bot's GitHub repository.
 - A [Healthchecks.io](https://healthchecks.io/) account for monitoring cron jobs.
 - An [UptimeRobot](https://dashboard.uptimerobot.com/) account for keeping the service alive.
 
-### 2. Setup
+### 2. Ongoing Deployment
 
-1. **Create a new Web Service on Render:**
-    - Go to the Render dashboard and click "New Web Service".
-    - Connect your GitHub account and select the repository for the bot.
-    - Set the **Start Command** to `python main.py`.
-    - Choose the free tier for hobby projects.
+1. **Automatic Deploys:**
+   By default, Render will automatically deploy any new commits pushed to your main branch.
 
-2. **Configure Environment Variables:**
+2. **Manual Deploys:**
+   If you need to redeploy an existing commit (e.g., after changing an environment variable), you can trigger a manual
+   deploy from the Render dashboard by going to the "Events" tab and clicking "Manual Deploy" -> "Deploy latest commit".
+
+3. **Configure Environment Variables:**
    Consult the env.example file to see the environment variables to add in the "Environment" section of your Render
    service.
-
-3. **Deploy the Bot:**
-    - Go to the "Events" tab and click "Manual Deploy" -> "Deploy latest commit".
-    - Monitor the logs to ensure the bot builds and starts successfully.
 
 4. **Set up Uptime Monitoring:**
     - In Render, find the public URL for your service (e.g., `your-bot.onrender.com`).
