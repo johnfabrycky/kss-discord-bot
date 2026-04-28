@@ -123,49 +123,43 @@ class ParkingService:
             logger.exception("Failed to load parking spot cache.")
 
     async def initialize_spots(self):
-        """Synchronize the database parking spot table with the configured constants."""
+        """Synchronize the database parking spot table ONLY if it is completely empty."""
         try:
-            # Fetch existing spots
-            existing_spots_response = await self.supabase.table("parking_spots").select(
-                "spot_number, is_guest, discord_userid, discord_nickname").execute()
+            # 1. Fast check to see if ANY row exists
+            check_response = await self.supabase.table("parking_spots").select("spot_number").limit(1).execute()
 
-            existing_data = {
-                int(row["spot_number"]): row for row in existing_spots_response.data
-            }
+            if check_response.data:
+                logger.info("parking_spots table is already populated. Skipping initialization.")
+                return  # Early return, do not overwrite existing data
 
-            # Update the local cache while we have the fresh data
-            self.guest_spots_cache = {
-                spot for spot, data in existing_data.items() if data.get("is_guest")
-            }
+            logger.info("parking_spots table is empty. Initializing default spots...")
 
             all_configs = []
+
+            # 2. Format standard spots
             for spot in VALID_SPOTS:
-                old = existing_data.get(spot, {})
                 all_configs.append(
                     {
                         "spot_number": spot,
                         "spot_type": "resident",
-                        "is_guest": old.get("is_guest", False),
-                        "discord_userid": old.get("discord_userid"),
-                        "discord_nickname": old.get("discord_nickname"),
+                        "is_guest": False,
                     }
                 )
 
+            # 3. Format staff spots
             for spot in STAFF_SPOTS:
-                old = existing_data.get(spot, {})
                 all_configs.append(
                     {
                         "spot_number": spot,
                         "spot_type": "staff",
                         "is_guest": False,
-                        "discord_userid": old.get("discord_userid"),
-                        "discord_nickname": old.get("discord_nickname"),
                     }
                 )
 
-            await self.supabase.table("parking_spots").upsert(all_configs, on_conflict="spot_number").execute()
+            # 4. Batch insert all new spots
+            await self.supabase.table("parking_spots").insert(all_configs).execute()
+            logger.info(f"Successfully initialized {len(all_configs)} parking spots!")
 
-            await self.refresh_parking_cache()
         except Exception:
             logger.exception("Parking spot initialization failed")
 

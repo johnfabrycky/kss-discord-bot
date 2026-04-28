@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from supabase import create_async_client, AsyncClient
 
 from bot.config import GUILD_ID, INITIAL_EXTENSIONS, MY_GUILD
+from bot.utils.database import ensure_tables_exist
 from bot.utils.discord_http_logging import install_discord_http_rate_limit_logging
 
 load_dotenv()
@@ -37,6 +38,13 @@ class Bot(commands.Bot):
 
     async def setup_hook(self):
         """Load configured extensions and sync slash commands to the development guild."""
+        db_url = os.environ.get("SUPABASE_DB_URL")
+        if db_url:
+            print("Verifying database schema...")
+            await ensure_tables_exist(db_url)
+        else:
+            print("WARNING: SUPABASE_DB_URL not found. Skipping schema creation.")
+
         url = os.environ.get("SUPABASE_URL")
         key = os.environ.get("SUPABASE_SERVICE_KEY")
         self.supabase = await create_async_client(url, key)

@@ -1,5 +1,5 @@
 -- Create the lates table
-CREATE TABLE lates (
+CREATE TABLE  IF NOT EXISTS lates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id TEXT,
     nickname TEXT,

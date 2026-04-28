@@ -60,9 +60,8 @@ class MealsServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.service.calculate_rotation_week(current_date), 2)
 
     async def test_refresh_calendar_config_loads_from_supabase(self):
-        # Create an AsyncMock for the execute method
-        mock_execute = AsyncMock()
-        mock_execute.return_value = SimpleNamespace(
+        # 1. Create the dummy data
+        mock_data = SimpleNamespace(
             data=[{
                 "semester_start": "2026-01-19T00:00:00-06:00",
                 "rotation_length_weeks": 4,
@@ -75,9 +74,23 @@ class MealsServiceTests(unittest.IsolatedAsyncioTestCase):
             }]
         )
 
-        # Attach the AsyncMock to the end of the Supabase query chain
-        self.supabase.table.return_value.select.return_value.eq.return_value.execute = mock_execute
+        # 2. Create a bulletproof query builder mock
+        mock_query_builder = MagicMock()
 
+        # Make all Supabase chain methods return the builder itself
+        mock_query_builder.select.return_value = mock_query_builder
+        mock_query_builder.eq.return_value = mock_query_builder
+        mock_query_builder.limit.return_value = mock_query_builder
+        mock_query_builder.single.return_value = mock_query_builder
+        mock_query_builder.order.return_value = mock_query_builder
+
+        # Finally, make the execute method asynchronous and return the data
+        mock_query_builder.execute = AsyncMock(return_value=mock_data)
+
+        # 3. Attach it to the table call
+        self.supabase.table.return_value = mock_query_builder
+
+        # 4. Run the test
         success = await self.service.refresh_calendar_config()
 
         self.assertTrue(success)

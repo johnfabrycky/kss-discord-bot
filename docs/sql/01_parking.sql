@@ -1,5 +1,5 @@
 -- Create the parking_spots table
-CREATE TABLE parking_spots (
+CREATE TABLE IF NOT EXISTS parking_spots (
     spot_number BIGINT PRIMARY KEY,
     spot_type TEXT,
     is_guest BOOLEAN,
@@ -8,7 +8,7 @@ CREATE TABLE parking_spots (
 );
 
 -- Create the parking_offers table
-CREATE TABLE parking_offers (
+CREATE TABLE IF NOT EXISTS parking_offers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     spot_number BIGINT,
     start_time TIMESTAMPTZ,
@@ -19,7 +19,7 @@ CREATE TABLE parking_offers (
 );
 
 -- Create the parking_reservations table
-CREATE TABLE parking_reservations (
+CREATE TABLE IF NOT EXISTS parking_reservations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     spot_number INT,
     claimer_id TEXT,
