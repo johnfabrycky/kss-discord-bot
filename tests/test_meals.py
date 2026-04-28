@@ -59,9 +59,6 @@ class MealsServiceTests(unittest.IsolatedAsyncioTestCase):
         current_date = datetime(2026, 3, 30, 12, 0, tzinfo=LOCAL_TZ)
         self.assertEqual(self.service.calculate_rotation_week(current_date), 2)
 
-    from unittest.mock import AsyncMock, MagicMock
-    from types import SimpleNamespace
-
     async def test_refresh_calendar_config_loads_from_supabase(self):
         # 1. Create the dummy data
         mock_data = SimpleNamespace(

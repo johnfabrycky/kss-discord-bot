@@ -1,6 +1,7 @@
-import asyncpg
 import logging
 from pathlib import Path
+
+import asyncpg
 
 logger = logging.getLogger(__name__)
 
