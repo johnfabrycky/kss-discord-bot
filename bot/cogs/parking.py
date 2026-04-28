@@ -8,7 +8,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from bot.config import LOCAL_TZ, STAFF_SPOTS, VALID_SPOTS, MINIMUM_RESERVATION_HOURS, MAXIMUM_RESERVATION_DAYS, \
+from bot.config import LOCAL_TZ, STAFF_SPOTS, PERMIT_SPOTS, MINIMUM_RESERVATION_HOURS, MAXIMUM_RESERVATION_DAYS, \
     MINIMUM_OFFER_HOURS, BOT_NAME
 from bot.services.parking_service import ParkingService
 from bot.utils.constants import WEEKDAYS
@@ -136,7 +136,7 @@ class Parking(commands.Cog):
             weeks: app_commands.Range[int, 1, 12] = 1,
     ):
         """Offer a resident parking spot for a recurring weekly time window."""
-        if spot not in VALID_SPOTS:
+        if spot not in PERMIT_SPOTS:
             return await interaction.response.send_message(f"❌ Spot {spot} is invalid.", ephemeral=True)
 
         start, end, duration = self.service.parse_range(start_day.value, start_time.value, end_day.value,
@@ -252,7 +252,7 @@ class Parking(commands.Cog):
             spot: int,
     ):
         """Reserve an offered resident spot or a designated guest spot."""
-        if spot not in VALID_SPOTS:
+        if spot not in PERMIT_SPOTS:
             return await interaction.response.send_message("Invalid spot.", ephemeral=True)
 
         start, end, duration = self.service.parse_range(start_day.value, start_time.value, end_day.value,

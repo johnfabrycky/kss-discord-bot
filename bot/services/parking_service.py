@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from supabase import AsyncClient
 
-from bot.config import LOCAL_TZ, STAFF_SPOTS, VALID_SPOTS, MINIMUM_RESERVATION_HOURS
+from bot.config import LOCAL_TZ, STAFF_SPOTS, PERMIT_SPOTS, MINIMUM_RESERVATION_HOURS
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +137,7 @@ class ParkingService:
             all_configs = []
 
             # 2. Format standard spots
-            for spot in VALID_SPOTS:
+            for spot in PERMIT_SPOTS:
                 all_configs.append(
                     {
                         "spot_number": spot,
