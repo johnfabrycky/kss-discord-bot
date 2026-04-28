@@ -60,15 +60,15 @@ requests.
 ## 🖼️ Visuals
 
 Offer spot
-![offer_spot.png](../../Pictures/Screenshots/offer_spot.png)
+![offer_spot.png](/assets/offer_spot.png)
 Offer spot confirmation
-![offer_spot_confirmation.png](../../Pictures/Screenshots/offer_spot_confirmation.png)
+![offer_spot_confirmation.png](/assets/offer_spot_confirmation.png)
 Claim spot
-![claim_spot.png](../../Pictures/Screenshots/claim_spot.png)
+![claim_spot.png](/assets/claim_spot.png)
 Claim spot confirmation
-![claim_spot_confirmation.png](../../Pictures/Screenshots/claim_spot_confirmation.png)
+![claim_spot_confirmation.png](/assets/claim_spot_confirmation.png)
 My parking
-![my_parking.png](../../Pictures/Screenshots/my_parking.png)
+![my_parking.png](/assets/my_parking.png)
 
 ## 🤖 Bot Invitation
 
