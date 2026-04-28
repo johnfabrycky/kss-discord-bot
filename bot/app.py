@@ -11,7 +11,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 from supabase import create_async_client, AsyncClient
 
-from bot.config import GUILD_ID, INITIAL_EXTENSIONS, MY_GUILD
+from bot.config import GUILD_ID, EXTENSIONS, MY_GUILD
 from bot.utils.database import ensure_tables_exist
 from bot.utils.discord_http_logging import install_discord_http_rate_limit_logging
 
@@ -50,7 +50,7 @@ class Bot(commands.Bot):
         self.supabase = await create_async_client(url, key)
         print("Async Supabase client initialized")
 
-        for extension in INITIAL_EXTENSIONS:
+        for extension in EXTENSIONS:
             try:
                 await self.load_extension(extension)
                 print(f"Loaded {extension}")

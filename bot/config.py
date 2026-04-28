@@ -12,7 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 GUILD_ID = os.getenv("GUILD_ID")
 MY_GUILD = discord.Object(id=GUILD_ID)
 
-INITIAL_EXTENSIONS = [
+EXTENSIONS = [
     "bot.cogs.meals",
     "bot.cogs.lates",
     "bot.cogs.parking",

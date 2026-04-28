@@ -37,6 +37,12 @@ class Parking(commands.Cog):
         self._parking_status_cache_expires_at = 0.0
         self._parking_status_lock = asyncio.Lock()
 
+    async def cog_load(self):
+        """Called when the cog is loaded."""
+        await self.service.initialize_spots()  # Ensures table is populated
+        await self.service.load_cache()  # Populates guest_spots_cache
+        await self.service.refresh_parking_cache()  # Populates offers/claims
+
     @staticmethod
     def _clone_embed(embed):
         """Create a detached embed copy safe to reuse across interactions."""
