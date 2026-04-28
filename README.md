@@ -63,7 +63,8 @@ requests.
 
 ## 🤖 Bot Invitation
 
-To add the bot to your Discord server, use the following invitation link. This link includes the necessary permissions for the bot to function correctly.
+To add the bot to your Discord server, use the following invitation link. This link includes the necessary permissions
+for the bot to function correctly.
 
 The necessary scopes are:
 bot
