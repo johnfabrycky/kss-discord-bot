@@ -9,12 +9,12 @@ from discord import app_commands
 from discord.ext import commands
 
 from bot.config import LOCAL_TZ, STAFF_SPOTS, PERMIT_SPOTS, MINIMUM_RESERVATION_HOURS, MAXIMUM_RESERVATION_DAYS, \
-    MINIMUM_OFFER_HOURS, CLAIM_SPOT_MAX_AUTOCOMPLETE_CHOICES, CANCEL_SPOT_MAX_AUTOCOMPLETE_CHOICES, BOT_NAME
+    MINIMUM_OFFER_HOURS, CLAIM_SPOT_MAX_AUTOCOMPLETE_CHOICES, CANCEL_SPOT_MAX_AUTOCOMPLETE_CHOICES, BOT_NAME, \
+    PARKING_STATUS_CACHE_TTL_SECONDS
 from bot.services.parking_service import ParkingService
 from bot.utils.constants import WEEKDAYS
 
 logger = logging.getLogger(__name__)
-STATUS_CACHE_TTL_SECONDS = 15
 
 
 class Parking(commands.Cog):
@@ -57,7 +57,7 @@ class Parking(commands.Cog):
     def _store_cached_parking_status_embed(self, embed):
         """Store a short-lived parking-status embed to absorb burst traffic."""
         self._parking_status_cache = self._clone_embed(embed)
-        self._parking_status_cache_expires_at = time.monotonic() + STATUS_CACHE_TTL_SECONDS
+        self._parking_status_cache_expires_at = time.monotonic() + PARKING_STATUS_CACHE_TTL_SECONDS
 
     @staticmethod
     def _mark_autocomplete_responded(response):
