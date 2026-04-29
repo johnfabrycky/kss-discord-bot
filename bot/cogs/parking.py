@@ -9,7 +9,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from bot.config import LOCAL_TZ, STAFF_SPOTS, PERMIT_SPOTS, MINIMUM_RESERVATION_HOURS, MAXIMUM_RESERVATION_DAYS, \
-    MINIMUM_OFFER_HOURS, BOT_NAME
+    MINIMUM_OFFER_HOURS, CLAIM_SPOT_MAX_AUTOCOMPLETE_CHOICES, CANCEL_SPOT_MAX_AUTOCOMPLETE_CHOICES, BOT_NAME
 from bot.services.parking_service import ParkingService
 from bot.utils.constants import WEEKDAYS
 
@@ -191,7 +191,7 @@ class Parking(commands.Cog):
             end_time = getattr(namespace.end_time, "value", namespace.end_time)
             start, end, duration = self.service.parse_range(start_day, start_time, end_day, end_time)
 
-            if duration < timedelta(hours=2) or duration > timedelta(days=7):
+            if duration < timedelta(hours=MINIMUM_RESERVATION_HOURS) or duration > timedelta(days=MAXIMUM_RESERVATION_DAYS):
                 return await self._finalize_autocomplete(
                     interaction,
                     [],
@@ -240,7 +240,7 @@ class Parking(commands.Cog):
 
         return await self._finalize_autocomplete(
             interaction,
-            choices[:25],
+            choices[:CLAIM_SPOT_MAX_AUTOCOMPLETE_CHOICES],
             handler_name="Parking claim_spot",
             log_context=log_context,
         )
@@ -359,7 +359,7 @@ class Parking(commands.Cog):
                 spot_offers = offers_db.get(spot_num, [])
                 spot_claims = sorted(claims_db.get(spot_num, []), key=lambda x: x["start"])
                 is_guest = spot_num in guest_spots
-                is_resident = not (spot_num == 998 or spot_num == 999)
+                is_resident = not (spot_num in STAFF_SPOTS)
 
                 header, blocks = self.service.get_merged_availability(now, resident_cutoff, spot_offers, spot_claims,
                                                                       is_guest, is_resident)
@@ -476,7 +476,7 @@ class Parking(commands.Cog):
 
         return await self._finalize_autocomplete(
             interaction,
-            choices[:25],
+            choices[:CANCEL_SPOT_MAX_AUTOCOMPLETE_CHOICES],
             handler_name="Parking cancel",
             log_context=log_context,
         )
