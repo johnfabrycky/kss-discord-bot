@@ -9,9 +9,9 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from dotenv import load_dotenv
-from supabase import create_async_client, AsyncClient
+from supabase import AsyncClient, create_async_client
 
-from bot.config import GUILD_ID, EXTENSIONS, MY_GUILD
+from bot.config import EXTENSIONS, GUILD_ID, MY_GUILD
 from bot.utils.database import ensure_tables_exist
 from bot.utils.discord_http_logging import install_discord_http_rate_limit_logging
 
@@ -72,7 +72,9 @@ class Bot(commands.Bot):
 
         self._ready_once = True
         await self.change_presence(
-            activity=discord.CustomActivity(name="Custom Status", state="Enter /help to see what I can do!")
+            activity=discord.CustomActivity(
+                name="Custom Status", state="Enter /help to see what I can do!"
+            )
         )
 
         try:
@@ -111,7 +113,9 @@ async def _send_ephemeral_app_error(interaction: discord.Interaction, message: s
 
 
 @bot.tree.error
-async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+async def on_app_command_error(
+    interaction: discord.Interaction, error: app_commands.AppCommandError
+):
     """Handle slash-command cooldowns and Discord-side 429 failures consistently."""
     command_name = getattr(getattr(interaction, "command", None), "name", "unknown")
     user_id = str(interaction.user.id)
@@ -120,7 +124,11 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
         retry_after = max(1, math.ceil(error.retry_after))
         logger.info(
             "App command hit cooldown",
-            extra={"command": command_name, "user_id": user_id, "retry_after_seconds": retry_after},
+            extra={
+                "command": command_name,
+                "user_id": user_id,
+                "retry_after_seconds": retry_after,
+            },
         )
         await _send_ephemeral_app_error(
             interaction,
@@ -206,7 +214,7 @@ async def audit_latency(ctx):
     embed = discord.Embed(
         title="🛰️ System Audit",
         description="Performance check for database and API routing.",
-        color=discord.Color.blue()
+        color=discord.Color.blue(),
     )
     embed.add_field(name="Gateway (WS)", value=f"`{gateway_lat}ms`", inline=True)
     embed.add_field(name="REST API", value=f"`{rest_lat}ms`", inline=True)
@@ -239,5 +247,7 @@ async def help_command(interaction: discord.Interaction):
     for name, value in sections.items():
         embed.add_field(name=name, value=value, inline=False)
 
-    embed.set_footer(text="Pro-tip: Slash commands show you exactly what to type as you go!")
+    embed.set_footer(
+        text="Pro-tip: Slash commands show you exactly what to type as you go!"
+    )
     await interaction.response.send_message(embed=embed, ephemeral=True)

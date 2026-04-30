@@ -21,7 +21,9 @@ class DiscordHttpLoggingTests(unittest.IsolatedAsyncioTestCase):
         logging_module._original_request = None
 
     def test_build_rate_limit_log_context_includes_route_and_headers(self):
-        route = discord.http.Route("POST", "/interactions/{interaction_id}/{interaction_token}/callback")
+        route = discord.http.Route(
+            "POST", "/interactions/{interaction_id}/{interaction_token}/callback"
+        )
         response = SimpleNamespace(
             status=429,
             reason="Too Many Requests",
@@ -38,7 +40,10 @@ class DiscordHttpLoggingTests(unittest.IsolatedAsyncioTestCase):
         context = logging_module.build_rate_limit_log_context(route, response, exc)
 
         self.assertEqual(context["method"], "POST")
-        self.assertEqual(context["route_path"], "/interactions/{interaction_id}/{interaction_token}/callback")
+        self.assertEqual(
+            context["route_path"],
+            "/interactions/{interaction_id}/{interaction_token}/callback",
+        )
         self.assertEqual(context["retry_after"], "2")
         self.assertEqual(context["x_ratelimit_bucket"], "bucket-1")
 

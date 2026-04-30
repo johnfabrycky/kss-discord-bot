@@ -19,7 +19,9 @@ class LatesService:
         try:
             res = await self.supabase.table("lates").select("*").execute()
             self.lates_cache = res.data or []
-            logger.info(f"Lates cache refreshed: {len(self.lates_cache)} total lates loaded.")
+            logger.info(
+                f"Lates cache refreshed: {len(self.lates_cache)} total lates loaded."
+            )
         except Exception as e:
             logger.error(f"Failed to refresh lates cache: {e}")
 
@@ -54,18 +56,23 @@ class LatesService:
             await self.refresh_lates_cache()
             return count
         except Exception:
-            logger.exception("Late cleanup failed", extra={"day_to_clean": day_to_clean})
+            logger.exception(
+                "Late cleanup failed", extra={"day_to_clean": day_to_clean}
+            )
             return None
 
     async def get_visible_lates(self, house, day, meal):
         """Return lates visible to the caller's house grouping instantly from memory."""
-        target_roles = ["koinonian"] if house == "koinonian" else ["stratfordite", "suttonite"]
+        target_roles = (
+            ["koinonian"] if house == "koinonian" else ["stratfordite", "suttonite"]
+        )
 
         return [
-            late for late in self.lates_cache
+            late
+            for late in self.lates_cache
             if late["day_of_week"] == day
-               and late["meal"] == meal
-               and late["role"] in target_roles
+            and late["meal"] == meal
+            and late["role"] in target_roles
         ]
 
     async def create_late(self, user_id, display_name, house, day, meal, is_permanent):
@@ -74,7 +81,11 @@ class LatesService:
 
         # 1. 0ms local duplicate check before hitting the database
         for late in self.lates_cache:
-            if late["user_id"] == user_str and late["day_of_week"] == day and late["meal"] == meal:
+            if (
+                late["user_id"] == user_str
+                and late["day_of_week"] == day
+                and late["meal"] == meal
+            ):
                 return False, "duplicate"
 
         # 2. Proceed with database write
@@ -99,19 +110,22 @@ class LatesService:
             {
                 "day_of_week": late["day_of_week"],
                 "meal": late["meal"],
-                "is_permanent": late["is_permanent"]
+                "is_permanent": late["is_permanent"],
             }
-            for late in self.lates_cache if late["user_id"] == user_str
+            for late in self.lates_cache
+            if late["user_id"] == user_str
         ]
 
     async def clear_late(self, user_id, day, meal):
         """Delete one late request for the caller."""
-        res = await self.supabase.table("lates") \
-            .delete() \
-            .eq("user_id", str(user_id)) \
-            .eq("day_of_week", day) \
-            .eq("meal", meal) \
+        res = (
+            await self.supabase.table("lates")
+            .delete()
+            .eq("user_id", str(user_id))
+            .eq("day_of_week", day)
+            .eq("meal", meal)
             .execute()
+        )
 
         success = bool(res.data)
         if success:

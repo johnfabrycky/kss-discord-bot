@@ -28,7 +28,7 @@ class Meals(commands.Cog):
         if not self.meals_service.calendar_config:
             return await interaction.response.send_message(
                 "⚠️ Meal configuration is currently loading or unavailable. Please try again later.",
-                ephemeral=True
+                ephemeral=True,
             )
 
         now = datetime.now(LOCAL_TZ)
@@ -37,8 +37,7 @@ class Meals(commands.Cog):
         break_name = self.meals_service.get_active_break_name(now)
         if break_name:
             return await interaction.response.send_message(
-                f"🏝️ **Enjoy your {break_name}!** No meals scheduled.",
-                ephemeral=True
+                f"🏝️ **Enjoy your {break_name}!** No meals scheduled.", ephemeral=True
             )
 
         # 2. Ask the service for the week and fetch the meals
@@ -46,7 +45,9 @@ class Meals(commands.Cog):
         day_name = now.strftime("%A")
 
         lunch = self.meals_service.get_meal_from_cache(current_week, day_name, "lunch")
-        dinner = self.meals_service.get_meal_from_cache(current_week, day_name, "dinner")
+        dinner = self.meals_service.get_meal_from_cache(
+            current_week, day_name, "dinner"
+        )
 
         # 3. Handle the Discord UI
         embed = discord.Embed(

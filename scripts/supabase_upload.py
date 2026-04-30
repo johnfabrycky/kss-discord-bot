@@ -1,5 +1,6 @@
 import csv
 import os
+import sys
 from pathlib import Path
 
 from flask.cli import load_dotenv
@@ -33,7 +34,7 @@ def upload_from_csv(file_path, schema: TableSchema):
     data_to_insert = []
 
     try:
-        with open(file_path, mode='r', encoding='utf-8') as f:
+        with open(file_path, mode="r", encoding="utf-8") as f:
             reader = csv.reader(f)
             headers = next(reader)
 
@@ -60,13 +61,15 @@ def transform_meals(csv_reader):
         day = parts[0]
         for i in range(1, 9):
             if i < len(parts) and parts[i].strip():
-                rows.append({
-                    "id": meal_id,
-                    "day": day,
-                    "week_number": (i + 1) // 2,
-                    "meal_type": "lunch" if i % 2 != 0 else "dinner",
-                    "dish_name": parts[i].strip()
-                })
+                rows.append(
+                    {
+                        "id": meal_id,
+                        "day": day,
+                        "week_number": (i + 1) // 2,
+                        "meal_type": "lunch" if i % 2 != 0 else "dinner",
+                        "dish_name": parts[i].strip(),
+                    }
+                )
                 meal_id += 1
     return rows
 
