@@ -1,4 +1,5 @@
 """Central runtime configuration for the Discord bot."""
+
 import os
 from pathlib import Path
 
@@ -19,7 +20,7 @@ EXTENSIONS = [
     "bot.cogs.feedback",
 ]
 
-LOCAL_TZ = pytz.timezone('America/Chicago')
+LOCAL_TZ = pytz.timezone("America/Chicago")
 
 PERMIT_SPOTS = list(range(1, 34)) + list(range(41, 47))
 STAFF_SPOTS = [998, 999]

@@ -1,4 +1,4 @@
-from dateutil.relativedelta import MO, TU, WE, TH, FR, SA, SU
+from dateutil.relativedelta import FR, MO, SA, SU, TH, TU, WE
 
 # UI Display Name -> dateutil Object mapping
 WEEKDAYS = [
@@ -8,5 +8,5 @@ WEEKDAYS = [
     (TH, "Thursday"),
     (FR, "Friday"),
     (SA, "Saturday"),
-    (SU, "Sunday")
+    (SU, "Sunday"),
 ]

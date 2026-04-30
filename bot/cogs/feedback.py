@@ -39,7 +39,9 @@ class FeedbackModal(ui.Modal, title=f"Improve {BOT_NAME}"):
 
         try:
             await asyncio.wait_for(
-                asyncio.to_thread(self.supabase.table("feedback").insert(payload).execute),
+                asyncio.to_thread(
+                    self.supabase.table("feedback").insert(payload).execute
+                ),
                 timeout=10,
             )
         except Exception:

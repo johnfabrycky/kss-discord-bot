@@ -53,7 +53,9 @@ class LatesCogTests(unittest.IsolatedAsyncioTestCase):
 
     def test_get_user_house_returns_expected_house(self):
         self.cog.service.get_user_house.return_value = "koinonian"
-        member = SimpleNamespace(roles=[SimpleNamespace(name="Koinonian"), SimpleNamespace(name="Resident")])
+        member = SimpleNamespace(
+            roles=[SimpleNamespace(name="Koinonian"), SimpleNamespace(name="Resident")]
+        )
 
         self.assertEqual(self.cog._get_user_house(member), "koinonian")
 
@@ -61,10 +63,14 @@ class LatesCogTests(unittest.IsolatedAsyncioTestCase):
         self.cog.service.get_user_house.return_value = None
         interaction = make_interaction(roles=[SimpleNamespace(name="Guest")])
 
-        await lates_module.Lates.view_lates.callback(self.cog, interaction, "Monday", "Lunch")
+        await lates_module.Lates.view_lates.callback(
+            self.cog, interaction, "Monday", "Lunch"
+        )
 
         # Now uses response.send_message instead of followup
-        interaction.response.send_message.assert_awaited_once_with("❌ No house role detected.", ephemeral=True)
+        interaction.response.send_message.assert_awaited_once_with(
+            "❌ No house role detected.", ephemeral=True
+        )
 
     async def test_view_lates_formats_visible_lates(self):
         self.cog.service.get_user_house.return_value = "koinonian"
@@ -74,7 +80,9 @@ class LatesCogTests(unittest.IsolatedAsyncioTestCase):
         ]
         interaction = make_interaction(roles=[SimpleNamespace(name="Koinonian")])
 
-        await lates_module.Lates.view_lates.callback(self.cog, interaction, "Monday", "Dinner")
+        await lates_module.Lates.view_lates.callback(
+            self.cog, interaction, "Monday", "Dinner"
+        )
 
         # Extracts embed from initial response, not followup
         embed = interaction.response.send_message.await_args.kwargs["embed"]
@@ -87,18 +95,28 @@ class LatesCogTests(unittest.IsolatedAsyncioTestCase):
         self.cog.service.create_late.return_value = (False, "duplicate")
         interaction = make_interaction(roles=[SimpleNamespace(name="Koinonian")])
 
-        await lates_module.Lates.late_me.callback(self.cog, interaction, "Monday", "Lunch", "False")
+        await lates_module.Lates.late_me.callback(
+            self.cog, interaction, "Monday", "Lunch", "False"
+        )
 
         # late_me still defers, so followup is correct
-        interaction.followup.send.assert_awaited_once_with("❌ You already have a late for this meal.", ephemeral=True)
+        interaction.followup.send.assert_awaited_once_with(
+            "❌ You already have a late for this meal.", ephemeral=True
+        )
 
     async def test_late_me_inserts_new_request(self):
         self.cog.service.get_user_house.return_value = "suttonite"
-        interaction = make_interaction(display_name="Casey", roles=[SimpleNamespace(name="Suttonite")], user_id=77)
+        interaction = make_interaction(
+            display_name="Casey", roles=[SimpleNamespace(name="Suttonite")], user_id=77
+        )
 
-        await lates_module.Lates.late_me.callback(self.cog, interaction, "Tuesday", "Dinner", "True")
+        await lates_module.Lates.late_me.callback(
+            self.cog, interaction, "Tuesday", "Dinner", "True"
+        )
 
-        self.cog.service.create_late.assert_awaited_once_with(77, "Casey", "suttonite", "Tuesday", "Dinner", True)
+        self.cog.service.create_late.assert_awaited_once_with(
+            77, "Casey", "suttonite", "Tuesday", "Dinner", True
+        )
         interaction.followup.send.assert_awaited_once_with(
             "✅ Late recorded for **Tuesday Dinner** (Suttonite).",
             ephemeral=True,
@@ -120,9 +138,13 @@ class LatesCogTests(unittest.IsolatedAsyncioTestCase):
     async def test_clear_late_handles_invalid_selection(self):
         interaction = make_interaction()
 
-        await lates_module.Lates.clear_late.callback(self.cog, interaction, "bad-selection")
+        await lates_module.Lates.clear_late.callback(
+            self.cog, interaction, "bad-selection"
+        )
 
-        interaction.followup.send.assert_awaited_once_with("❌ Invalid selection.", ephemeral=True)
+        interaction.followup.send.assert_awaited_once_with(
+            "❌ Invalid selection.", ephemeral=True
+        )
 
     async def test_my_lates_shows_active_requests(self):
         self.cog.service.get_user_lates.return_value = [
@@ -148,15 +170,21 @@ class LatesServiceTests(unittest.IsolatedAsyncioTestCase):
         self.service = LatesService(self.supabase)
 
     def test_get_user_house_returns_expected_house(self):
-        member = SimpleNamespace(roles=[SimpleNamespace(name="Koinonian"), SimpleNamespace(name="Resident")])
+        member = SimpleNamespace(
+            roles=[SimpleNamespace(name="Koinonian"), SimpleNamespace(name="Resident")]
+        )
 
         self.assertEqual(self.service.get_user_house(member), "koinonian")
 
     async def test_create_late_blocks_duplicate_request(self):
         # Seed the local cache to trigger the 0ms duplicate block
-        self.service.lates_cache = [{"user_id": "1234", "day_of_week": "Monday", "meal": "Lunch"}]
+        self.service.lates_cache = [
+            {"user_id": "1234", "day_of_week": "Monday", "meal": "Lunch"}
+        ]
 
-        success, reason = await self.service.create_late(1234, "Tester", "koinonian", "Monday", "Lunch", False)
+        success, reason = await self.service.create_late(
+            1234, "Tester", "koinonian", "Monday", "Lunch", False
+        )
 
         self.assertFalse(success)
         self.assertEqual(reason, "duplicate")
@@ -170,7 +198,9 @@ class LatesServiceTests(unittest.IsolatedAsyncioTestCase):
         # Prevent the test from making a real DB call during the cache sync
         self.service.refresh_lates_cache = AsyncMock()
 
-        success, payload = await self.service.create_late(77, "Casey", "suttonite", "Tuesday", "Dinner", True)
+        success, payload = await self.service.create_late(
+            77, "Casey", "suttonite", "Tuesday", "Dinner", True
+        )
 
         self.assertTrue(success)
         self.assertEqual(payload["user_id"], "77")
@@ -190,10 +220,27 @@ class LatesServiceTests(unittest.IsolatedAsyncioTestCase):
     async def test_get_visible_lates_uses_house_grouping(self):
         # Pre-populate the memory cache with test data
         self.service.lates_cache = [
-            {"nickname": "Alice", "role": "koinonian", "day_of_week": "Monday", "meal": "Dinner", "is_permanent": True},
-            {"nickname": "Bob", "role": "suttonite", "day_of_week": "Monday", "meal": "Dinner", "is_permanent": False},
-            {"nickname": "Charlie", "role": "koinonian", "day_of_week": "Tuesday", "meal": "Dinner",
-             "is_permanent": True}
+            {
+                "nickname": "Alice",
+                "role": "koinonian",
+                "day_of_week": "Monday",
+                "meal": "Dinner",
+                "is_permanent": True,
+            },
+            {
+                "nickname": "Bob",
+                "role": "suttonite",
+                "day_of_week": "Monday",
+                "meal": "Dinner",
+                "is_permanent": False,
+            },
+            {
+                "nickname": "Charlie",
+                "role": "koinonian",
+                "day_of_week": "Tuesday",
+                "meal": "Dinner",
+                "is_permanent": True,
+            },
         ]
 
         # Fetch koinonian lates for Monday Dinner

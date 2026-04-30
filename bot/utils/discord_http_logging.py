@@ -14,7 +14,9 @@ _installed = False
 _original_request = None
 
 
-def build_rate_limit_log_context(route: Any, response: Any, exc: discord.HTTPException) -> dict[str, Any]:
+def build_rate_limit_log_context(
+    route: Any, response: Any, exc: discord.HTTPException
+) -> dict[str, Any]:
     """Build structured log metadata for a Discord HTTP 429 response."""
     headers = getattr(response, "headers", {}) or {}
     return {
@@ -44,7 +46,9 @@ async def _traced_request(self, route, *, files=None, form=None, **kwargs):
         if exc.status == 429:
             logger.warning(
                 "Discord HTTP rate limit hit",
-                extra=build_rate_limit_log_context(route, getattr(exc, "response", None), exc),
+                extra=build_rate_limit_log_context(
+                    route, getattr(exc, "response", None), exc
+                ),
             )
         raise
 

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from supabase import AsyncClient
 
-from bot.config import LOCAL_TZ, STAFF_SPOTS, PERMIT_SPOTS, MINIMUM_RESERVATION_HOURS
+from bot.config import LOCAL_TZ, MINIMUM_RESERVATION_HOURS, PERMIT_SPOTS, STAFF_SPOTS
 
 logger = logging.getLogger(__name__)
 
@@ -32,13 +32,24 @@ class ParkingService:
             now_iso = datetime.now(LOCAL_TZ).isoformat()
 
             # Run sequentially instead of using asyncio.gather to satisfy strict lock testing
-            offers = await self.supabase.table("parking_offers").select("*").gt("end_time", now_iso).execute()
-            claims = await self.supabase.table("parking_reservations").select("*").gt("end_time", now_iso).execute()
+            offers = (
+                await self.supabase.table("parking_offers")
+                .select("*")
+                .gt("end_time", now_iso)
+                .execute()
+            )
+            claims = (
+                await self.supabase.table("parking_reservations")
+                .select("*")
+                .gt("end_time", now_iso)
+                .execute()
+            )
 
             self.active_offers_cache = offers.data
             self.active_claims_cache = claims.data
             logger.info(
-                f"Parking cache refreshed: {len(self.active_offers_cache)} offers, {len(self.active_claims_cache)} claims.")
+                f"Parking cache refreshed: {len(self.active_offers_cache)} offers, {len(self.active_claims_cache)} claims."
+            )
         except Exception as e:
             logger.error(f"Failed to refresh parking cache: {e}")
 
@@ -52,20 +63,30 @@ class ParkingService:
         """Persist the caller's last successful offer spot without failing the command."""
         try:
             # Clear any existing spot ownership for this user
-            await self.supabase.table("parking_spots").update(
-                {
-                    "discord_userid": None,
-                    "discord_nickname": None,
-                }
-            ).eq("discord_userid", str(user_id)).execute()
+            await (
+                self.supabase.table("parking_spots")
+                .update(
+                    {
+                        "discord_userid": None,
+                        "discord_nickname": None,
+                    }
+                )
+                .eq("discord_userid", str(user_id))
+                .execute()
+            )
 
             # Set ownership on the newly offered spot
-            await self.supabase.table("parking_spots").update(
-                {
-                    "discord_userid": str(user_id),
-                    "discord_nickname": username,
-                }
-            ).eq("spot_number", int(spot)).execute()
+            await (
+                self.supabase.table("parking_spots")
+                .update(
+                    {
+                        "discord_userid": str(user_id),
+                        "discord_nickname": username,
+                    }
+                )
+                .eq("spot_number", int(spot))
+                .execute()
+            )
 
             return True
         except Exception:
@@ -116,7 +137,12 @@ class ParkingService:
     async def load_cache(self):
         """Load mostly-static data into memory to reduce database hits."""
         try:
-            response = await self.supabase.table("parking_spots").select("spot_number").eq("is_guest", True).execute()
+            response = (
+                await self.supabase.table("parking_spots")
+                .select("spot_number")
+                .eq("is_guest", True)
+                .execute()
+            )
             self.guest_spots_cache = {int(row["spot_number"]) for row in response.data}
             logger.info(f"Loaded {len(self.guest_spots_cache)} guest spots into cache.")
         except Exception:
@@ -126,10 +152,17 @@ class ParkingService:
         """Synchronize the database parking spot table ONLY if it is completely empty."""
         try:
             # 1. Fast check to see if ANY row exists
-            check_response = await self.supabase.table("parking_spots").select("spot_number").limit(1).execute()
+            check_response = (
+                await self.supabase.table("parking_spots")
+                .select("spot_number")
+                .limit(1)
+                .execute()
+            )
 
             if check_response.data:
-                logger.info("parking_spots table is already populated. Skipping initialization.")
+                logger.info(
+                    "parking_spots table is already populated. Skipping initialization."
+                )
                 return  # Early return, do not overwrite existing data
 
             logger.info("parking_spots table is empty. Initializing default spots...")
@@ -180,7 +213,9 @@ class ParkingService:
 
         hour_iterator = start_time
         while hour_iterator < end_time:
-            is_in_blackout = self.is_blackout(hour_iterator, hour_iterator + timedelta(hours=1))
+            is_in_blackout = self.is_blackout(
+                hour_iterator, hour_iterator + timedelta(hours=1)
+            )
 
             if not is_in_blackout and current_window_start is None:
                 current_window_start = hour_iterator
@@ -201,8 +236,16 @@ class ParkingService:
         cutoff_iso = cutoff.isoformat()
 
         # Filter the local memory exactly like Supabase would
-        valid_offers = [o for o in self.active_offers_cache if o["end_time"] > now_iso and o["start_time"] < cutoff_iso]
-        valid_claims = [c for c in self.active_claims_cache if c["end_time"] > now_iso and c["start_time"] < cutoff_iso]
+        valid_offers = [
+            o
+            for o in self.active_offers_cache
+            if o["end_time"] > now_iso and o["start_time"] < cutoff_iso
+        ]
+        valid_claims = [
+            c
+            for c in self.active_claims_cache
+            if c["end_time"] > now_iso and c["start_time"] < cutoff_iso
+        ]
 
         return valid_offers, valid_claims, list(self.guest_spots_cache)
 
@@ -215,12 +258,14 @@ class ParkingService:
                     start = base_start + timedelta(weeks=i)
                     end = base_end + timedelta(weeks=i)
 
-                    existing = await self.supabase.table("parking_offers") \
-                        .select("*") \
-                        .eq("spot_number", int(spot)) \
-                        .lt("start_time", end.isoformat()) \
-                        .gt("end_time", start.isoformat()) \
+                    existing = (
+                        await self.supabase.table("parking_offers")
+                        .select("*")
+                        .eq("spot_number", int(spot))
+                        .lt("start_time", end.isoformat())
+                        .gt("end_time", start.isoformat())
                         .execute()
+                    )
 
                     if not existing.data:
                         all_offers.append(
@@ -256,46 +301,57 @@ class ParkingService:
     async def claim_resident_spot(self, user_id, username, spot, start, end):
         """Reserve a guest spot or a resident spot covered by an existing offer."""
         async with self._get_mutation_lock_for_spot(spot):
-            conflict = await self.supabase.table("parking_reservations") \
-                .select("*") \
-                .eq("spot_number", int(spot)) \
-                .lt("start_time", end.isoformat()) \
-                .gt("end_time", start.isoformat()) \
+            conflict = (
+                await self.supabase.table("parking_reservations")
+                .select("*")
+                .eq("spot_number", int(spot))
+                .lt("start_time", end.isoformat())
+                .gt("end_time", start.isoformat())
                 .execute()
+            )
 
             if conflict.data:
                 return False, f"❌ Spot {spot} is already reserved."
 
             offer_id = None
             if int(spot) not in self.guest_spots_cache:
-                offer = await self.supabase.table("parking_offers") \
-                    .select("id") \
-                    .eq("spot_number", int(spot)) \
-                    .lte("start_time", start.isoformat()) \
-                    .gte("end_time", end.isoformat()) \
+                offer = (
+                    await self.supabase.table("parking_offers")
+                    .select("id")
+                    .eq("spot_number", int(spot))
+                    .lte("start_time", start.isoformat())
+                    .gte("end_time", end.isoformat())
                     .execute()
+                )
 
                 if not offer.data:
                     return False, f"❌ Spot {spot} isn't offered for that window."
                 offer_id = offer.data[0]["id"]
 
-            await self.supabase.table("parking_reservations").insert(
-                {
-                    "spot_number": int(spot),
-                    "claimer_id": str(user_id),
-                    "claimer_discord_username": username,
-                    "start_time": start.isoformat(),
-                    "end_time": end.isoformat(),
-                    "offer_id": offer_id,
-                }
-            ).execute()
+            await (
+                self.supabase.table("parking_reservations")
+                .insert(
+                    {
+                        "spot_number": int(spot),
+                        "claimer_id": str(user_id),
+                        "claimer_discord_username": username,
+                        "start_time": start.isoformat(),
+                        "end_time": end.isoformat(),
+                        "offer_id": offer_id,
+                    }
+                )
+                .execute()
+            )
 
             start_label = self._format_datetime_label(start)
             end_label = self._format_datetime_label(end)
 
             await self.refresh_parking_cache()
 
-            return True, f"✅ **Spot {spot}** reserved!\nStart: {start_label}\nEnd: {end_label}"
+            return (
+                True,
+                f"✅ **Spot {spot}** reserved!\nStart: {start_label}\nEnd: {end_label}",
+            )
 
     async def claim_staff_spot(self, user_id, username, start, end):
         """Assign the first available staff spot for a requested window."""
@@ -303,89 +359,138 @@ class ParkingService:
             if self.is_blackout(start, end):
                 return False, "❌ Blackout hours active."
 
-            conflicts = await self.supabase.table("parking_reservations") \
-                .select("spot_number") \
-                .in_("spot_number", STAFF_SPOTS) \
-                .lt("start_time", end.isoformat()) \
-                .gt("end_time", start.isoformat()) \
+            conflicts = (
+                await self.supabase.table("parking_reservations")
+                .select("spot_number")
+                .in_("spot_number", STAFF_SPOTS)
+                .lt("start_time", end.isoformat())
+                .gt("end_time", start.isoformat())
                 .execute()
+            )
 
             occupied = [int(row["spot_number"]) for row in conflicts.data]
 
             if len(occupied) >= len(STAFF_SPOTS):
                 return False, "❌ Staff spots are full."
 
-            assigned = STAFF_SPOTS[0] if STAFF_SPOTS[0] not in occupied else STAFF_SPOTS[1]
-            await self.supabase.table("parking_reservations").insert(
-                {
-                    "spot_number": assigned,
-                    "claimer_id": str(user_id),
-                    "claimer_discord_username": username,
-                    "start_time": start.isoformat(),
-                    "end_time": end.isoformat(),
-                }
-            ).execute()
+            assigned = (
+                STAFF_SPOTS[0] if STAFF_SPOTS[0] not in occupied else STAFF_SPOTS[1]
+            )
+            await (
+                self.supabase.table("parking_reservations")
+                .insert(
+                    {
+                        "spot_number": assigned,
+                        "claimer_id": str(user_id),
+                        "claimer_discord_username": username,
+                        "start_time": start.isoformat(),
+                        "end_time": end.isoformat(),
+                    }
+                )
+                .execute()
+            )
 
             start_label = self._format_datetime_label(start)
             end_label = self._format_datetime_label(end)
 
             await self.refresh_parking_cache()
 
-            return True, f"✅ Staff Spot reserved!\nStart: {start_label}\nEnd: {end_label}"
+            return (
+                True,
+                f"✅ Staff Spot reserved!\nStart: {start_label}\nEnd: {end_label}",
+            )
 
     async def cancel_action(self, user_id, action_type, record_id):
         """Cancel one selected offer or reservation and return any affected user mentions."""
         try:
-            table_name = "parking_offers" if action_type == "offer" else "parking_reservations"
-            response = await self.supabase.table(table_name) \
-                .select("spot_number") \
-                .eq("id", str(record_id)) \
+            table_name = (
+                "parking_offers" if action_type == "offer" else "parking_reservations"
+            )
+            response = (
+                await self.supabase.table(table_name)
+                .select("spot_number")
+                .eq("id", str(record_id))
                 .execute()
+            )
 
             spot = int(response.data[0]["spot_number"]) if response.data else None
         except Exception:
             spot = None
 
-        lock = self._get_mutation_lock_for_spot(spot) if spot is not None else self._fallback_mutation_lock
+        lock = (
+            self._get_mutation_lock_for_spot(spot)
+            if spot is not None
+            else self._fallback_mutation_lock
+        )
 
         async with lock:
             now_iso = datetime.now(LOCAL_TZ).isoformat()
 
             if action_type == "offer":
-                target = await self.supabase.table("parking_offers") \
-                    .select("*") \
-                    .eq("owner_id", str(user_id)) \
-                    .eq("id", str(record_id)) \
-                    .gt("end_time", now_iso) \
+                target = (
+                    await self.supabase.table("parking_offers")
+                    .select("*")
+                    .eq("owner_id", str(user_id))
+                    .eq("id", str(record_id))
+                    .gt("end_time", now_iso)
                     .execute()
+                )
 
                 if not target.data:
                     return False, "No matching offers.", None
 
                 offer = target.data[0]
-                claims = await self.supabase.table("parking_reservations").select("claimer_id").eq("offer_id",
-                                                                                                   str(record_id)).execute()
-                await self.supabase.table("parking_reservations").delete().eq("offer_id", str(record_id)).execute()
-                await self.supabase.table("parking_offers").delete().eq("id", str(record_id)).execute()
+                claims = (
+                    await self.supabase.table("parking_reservations")
+                    .select("claimer_id")
+                    .eq("offer_id", str(record_id))
+                    .execute()
+                )
+                await (
+                    self.supabase.table("parking_reservations")
+                    .delete()
+                    .eq("offer_id", str(record_id))
+                    .execute()
+                )
+                await (
+                    self.supabase.table("parking_offers")
+                    .delete()
+                    .eq("id", str(record_id))
+                    .execute()
+                )
                 pings = list({f"<@{c['claimer_id']}>" for c in claims.data})
 
-                spot_label = "Staff Spot" if offer['spot_number'] in STAFF_SPOTS else f"Spot {offer['spot_number']}"
+                spot_label = (
+                    "Staff Spot"
+                    if offer["spot_number"] in STAFF_SPOTS
+                    else f"Spot {offer['spot_number']}"
+                )
                 return True, f"🔄 {spot_label} offer withdrawn.", pings
 
-            target = await self.supabase.table("parking_reservations") \
-                .select("*") \
-                .eq("claimer_id", str(user_id)) \
-                .eq("id", str(record_id)) \
-                .gt("end_time", now_iso) \
+            target = (
+                await self.supabase.table("parking_reservations")
+                .select("*")
+                .eq("claimer_id", str(user_id))
+                .eq("id", str(record_id))
+                .gt("end_time", now_iso)
                 .execute()
+            )
 
             if not target.data:
                 return False, "No matching claims.", None
 
             reservation = target.data[0]
-            await self.supabase.table("parking_reservations").delete().eq("id", str(record_id)).execute()
-            spot_label = "Staff Spot" if reservation[
-                                             'spot_number'] in STAFF_SPOTS else f"Spot {reservation['spot_number']}"
+            await (
+                self.supabase.table("parking_reservations")
+                .delete()
+                .eq("id", str(record_id))
+                .execute()
+            )
+            spot_label = (
+                "Staff Spot"
+                if reservation["spot_number"] in STAFF_SPOTS
+                else f"Spot {reservation['spot_number']}"
+            )
 
             await self.refresh_parking_cache()
 
@@ -398,12 +503,14 @@ class ParkingService:
 
         # Filter the global cache instead of querying Supabase
         user_offers = [
-            offer for offer in self.active_offers_cache
+            offer
+            for offer in self.active_offers_cache
             if offer["owner_id"] == user_str and offer["end_time"] > now_iso
         ]
 
         user_claims = [
-            claim for claim in self.active_claims_cache
+            claim
+            for claim in self.active_claims_cache
             if claim["claimer_id"] == user_str and claim["end_time"] > now_iso
         ]
 
@@ -416,12 +523,14 @@ class ParkingService:
 
         # Filter the global cache instead of querying Supabase
         user_offers = [
-            offer for offer in self.active_offers_cache
+            offer
+            for offer in self.active_offers_cache
             if offer["owner_id"] == user_str and offer["end_time"] > now_iso
         ]
 
         user_claims = [
-            claim for claim in self.active_claims_cache
+            claim
+            for claim in self.active_claims_cache
             if claim["claimer_id"] == user_str and claim["end_time"] > now_iso
         ]
 
@@ -433,13 +542,11 @@ class ParkingService:
 
         # Filter the global cache
         valid_offers = [
-            offer for offer in self.active_offers_cache
-            if offer["end_time"] > now_iso
+            offer for offer in self.active_offers_cache if offer["end_time"] > now_iso
         ]
 
         valid_claims = [
-            claim for claim in self.active_claims_cache
-            if claim["end_time"] > now_iso
+            claim for claim in self.active_claims_cache if claim["end_time"] > now_iso
         ]
 
         guest_spots = [{"spot_number": spot} for spot in self.guest_spots_cache]
@@ -452,7 +559,9 @@ class ParkingService:
             return "None"
         return ", ".join(map(str, sorted(self.guest_spots_cache)))
 
-    def get_merged_availability(self, now, cutoff, raw_offers, raw_claims, is_guest=False, is_resident=True):
+    def get_merged_availability(
+        self, now, cutoff, raw_offers, raw_claims, is_guest=False, is_resident=True
+    ):
         """Merge offer windows, subtract claims, and return a status header plus free blocks."""
         if is_guest:
             merged_windows = [{"start": now.replace(hour=0), "end": cutoff}]
@@ -473,40 +582,65 @@ class ParkingService:
 
         blocks = []
         for window in merged_windows:
-            window_start, window_end = max(window["start"], now), min(window["end"], cutoff)
+            window_start, window_end = (
+                max(window["start"], now),
+                min(window["end"], cutoff),
+            )
             if window_start >= window_end:
                 continue
 
             pointer = window_start
             relevant_claims = sorted(
-                [claim for claim in raw_claims if not (claim["end"] <= window_start or claim["start"] >= window_end)],
+                [
+                    claim
+                    for claim in raw_claims
+                    if not (
+                        claim["end"] <= window_start or claim["start"] >= window_end
+                    )
+                ],
                 key=lambda x: x["start"],
             )
 
             for claim in relevant_claims:
                 claim_start = max(claim["start"], window_start)
-                if (claim_start - pointer) >= timedelta(hours=MINIMUM_RESERVATION_HOURS):
+                if (claim_start - pointer) >= timedelta(
+                    hours=MINIMUM_RESERVATION_HOURS
+                ):
                     blocks.append((pointer, claim_start))
                 pointer = max(pointer, claim["end"])
 
             if (window_end - pointer) >= timedelta(hours=MINIMUM_RESERVATION_HOURS):
                 blocks.append((pointer, window_end))
 
-        current_claim = next((claim for claim in raw_claims if claim["start"] <= now < claim["end"]), None)
-        active_block = next((block for block in blocks if block[0] <= now < block[1]), None)
+        current_claim = next(
+            (claim for claim in raw_claims if claim["start"] <= now < claim["end"]),
+            None,
+        )
+        active_block = next(
+            (block for block in blocks if block[0] <= now < block[1]), None
+        )
         next_block = next((block for block in blocks if block[0] > now), None)
 
         if active_block:
             if active_block[1] >= cutoff:
                 if not is_resident:
                     # Staff spots reset at 12 AM (Sun-Thu) or 2 AM (Fri-Sat)
-                    reset_time_string = "Sun 2 AM" if (now.weekday() == 4 or now.weekday() == 5 or (
-                            now.weekday() == 6 and now.hour < 2)) else "12 AM"
+                    reset_time_string = (
+                        "Sun 2 AM"
+                        if (
+                            now.weekday() == 4
+                            or now.weekday() == 5
+                            or (now.weekday() == 6 and now.hour < 2)
+                        )
+                        else "12 AM"
+                    )
                     header = f"🟢 Available Now (until {reset_time_string})"
                 else:
                     header = "🟢 Available Now (All Week)"
             else:
-                header = f"🟢 Available Now (until {active_block[1].strftime('%a %I%p')})"
+                header = (
+                    f"🟢 Available Now (until {active_block[1].strftime('%a %I%p')})"
+                )
         elif current_claim:
             if next_block:
                 header = f"🔴 Busy (Next: {next_block[0].strftime('%a %I%p')})"

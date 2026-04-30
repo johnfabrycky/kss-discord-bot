@@ -7,8 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import discord
 
 from bot.cogs import parking as parking_module
-from bot.config import MAXIMUM_RESERVATION_DAYS, LOCAL_TZ
-from bot.config import MINIMUM_RESERVATION_HOURS
+from bot.config import LOCAL_TZ, MAXIMUM_RESERVATION_DAYS, MINIMUM_RESERVATION_HOURS
 from bot.services.parking_service import ParkingService
 
 
@@ -84,7 +83,9 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
             1,
         )
 
-        interaction.response.send_message.assert_awaited_once_with("❌ Spot 9999 is invalid.", ephemeral=True)
+        interaction.response.send_message.assert_awaited_once_with(
+            "❌ Spot 9999 is invalid.", ephemeral=True
+        )
 
     async def test_offer_spot_creates_offer_for_valid_request(self):
         interaction = make_interaction()
@@ -105,8 +106,12 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         )
 
         interaction.response.defer.assert_awaited_once_with(ephemeral=True)
-        self.service.save_offer_spot_preference.assert_awaited_once_with(1234, "TestUser", 10)
-        interaction.channel.send.assert_awaited_once_with("<@1234> offered spot 10!\ncreated")
+        self.service.save_offer_spot_preference.assert_awaited_once_with(
+            1234, "TestUser", 10
+        )
+        interaction.channel.send.assert_awaited_once_with(
+            "<@1234> offered spot 10!\ncreated"
+        )
         interaction.delete_original_response.assert_awaited_once()
 
     async def test_claim_spot_rejects_duration_outside_limits(self):
@@ -126,12 +131,18 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         )
 
         interaction.response.send_message.assert_awaited_once_with(
-            f"❌ Must be between {MINIMUM_RESERVATION_HOURS} hour and {MAXIMUM_RESERVATION_DAYS} days.", ephemeral=True)
+            f"❌ Must be between {MINIMUM_RESERVATION_HOURS} hour and {MAXIMUM_RESERVATION_DAYS} days.",
+            ephemeral=True,
+        )
 
     async def test_claim_spot_autocomplete_filters_to_window_compatible_spots(self):
         start = datetime.fromisoformat("2026-04-02T16:00:00-05:00")
         end = datetime.fromisoformat("2026-04-05T12:00:00-05:00")
-        self.service.parse_range.return_value = (start, end, timedelta(days=2, hours=20))
+        self.service.parse_range.return_value = (
+            start,
+            end,
+            timedelta(days=2, hours=20),
+        )
         self.service.get_claim_autocomplete_data.return_value = (
             [{"spot_number": 46}],
             [
@@ -159,12 +170,21 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         choices = await self.cog.claim_spot_autocomplete(interaction, "")
 
         self.assertEqual([choice.value for choice in choices], [27, 46])
-        self.assertEqual([choice.name for choice in choices], ["Spot 27 (Offered)", "Spot 46 (Guest)"])
+        self.assertEqual(
+            [choice.name for choice in choices],
+            ["Spot 27 (Offered)", "Spot 46 (Guest)"],
+        )
 
-    async def test_claim_spot_autocomplete_excludes_offered_spot_with_overlapping_claim(self):
+    async def test_claim_spot_autocomplete_excludes_offered_spot_with_overlapping_claim(
+        self,
+    ):
         start = datetime.fromisoformat("2026-04-02T16:00:00-05:00")
         end = datetime.fromisoformat("2026-04-05T12:00:00-05:00")
-        self.service.parse_range.return_value = (start, end, timedelta(days=2, hours=20))
+        self.service.parse_range.return_value = (
+            start,
+            end,
+            timedelta(days=2, hours=20),
+        )
         self.service.get_claim_autocomplete_data.return_value = (
             [{"spot_number": 46}],
             [
@@ -255,11 +275,21 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
             self.service.get_merged_availability.side_effect = [
                 (
                     "🟢 Available Now (until Mon 06PM)",
-                    [(datetime(2026, 4, 6, 8, 0, tzinfo=tz), datetime(2026, 4, 6, 18, 0, tzinfo=tz))],
+                    [
+                        (
+                            datetime(2026, 4, 6, 8, 0, tzinfo=tz),
+                            datetime(2026, 4, 6, 18, 0, tzinfo=tz),
+                        )
+                    ],
                 ),
                 (
                     "🟢 Available Now (until Thu 12PM)",
-                    [(datetime(2026, 4, 6, 8, 0, tzinfo=tz), datetime(2026, 4, 9, 12, 0, tzinfo=tz))],
+                    [
+                        (
+                            datetime(2026, 4, 6, 8, 0, tzinfo=tz),
+                            datetime(2026, 4, 9, 12, 0, tzinfo=tz),
+                        )
+                    ],
                 ),
                 (
                     "🔴 Busy (Next: Mon 12PM)",
@@ -285,7 +315,9 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         # Staff assertions
         self.assertEqual(embed.fields[1].name, "Staff Parking (Today)")
         self.assertIn("**Spot 1**: 🔴 Busy (Next: Mon 12PM)", embed.fields[1].value)
-        self.assertIn("**Spot 2**: 🟢 Available Now (until Mon 05PM)", embed.fields[1].value)
+        self.assertIn(
+            "**Spot 2**: 🟢 Available Now (until Mon 05PM)", embed.fields[1].value
+        )
         self.assertNotIn("998", embed.fields[1].value)
         self.assertNotIn("999", embed.fields[1].value)
 
@@ -338,10 +370,11 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("Spot 10", embed.fields[0].value)
 
     def test_get_merged_availability_shows_all_week(self):
-        from bot.config import LOCAL_TZ
         from datetime import datetime, timedelta
-        from bot.services.parking_service import ParkingService
         from unittest.mock import MagicMock
+
+        from bot.config import LOCAL_TZ
+        from bot.services.parking_service import ParkingService
 
         # 1. Instantiate the REAL service to test its internal logic,
         # passing a dummy mock for the database to prevent network calls.
@@ -351,10 +384,7 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         cutoff = now + timedelta(days=7)
 
         # 2. Simulate an offer that spans the entire 7-day window with no claims
-        raw_offers = [{
-            "start": now,
-            "end": cutoff
-        }]
+        raw_offers = [{"start": now, "end": cutoff}]
         raw_claims = []
 
         # 3. Call the method on the REAL service, not self.service
@@ -369,7 +399,9 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
     async def test_cancel_rejects_manual_text(self):
         interaction = make_interaction()
 
-        await parking_module.Parking.cancel.callback(self.cog, interaction, "manual-input")
+        await parking_module.Parking.cancel.callback(
+            self.cog, interaction, "manual-input"
+        )
 
         interaction.response.send_message.assert_awaited_once_with(
             "❌ Please select an option from the list.",
@@ -380,10 +412,14 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         interaction = make_interaction()
         self.service.cancel_action.return_value = (True, "withdrawn", ["<@1>", "<@2>"])
 
-        await parking_module.Parking.cancel.callback(self.cog, interaction, "sig_offer_test-id")
+        await parking_module.Parking.cancel.callback(
+            self.cog, interaction, "sig_offer_test-id"
+        )
 
         interaction.response.defer.assert_awaited_once_with(ephemeral=True)
-        interaction.channel.send.assert_awaited_once_with("⚠️ **Attention <@1>, <@2>**: withdrawn")
+        interaction.channel.send.assert_awaited_once_with(
+            "⚠️ **Attention <@1>, <@2>**: withdrawn"
+        )
         interaction.followup.send.assert_awaited_once_with("withdrawn", ephemeral=True)
 
     async def test_cancel_spot_autocomplete_formats_results(self):
@@ -435,26 +471,42 @@ class ParkingServiceTests(unittest.TestCase):
         real_datetime = datetime
         current_time = real_datetime(2026, 4, 2, 16, 21, tzinfo=parking_module.LOCAL_TZ)
         datetime_mock.now.return_value = current_time
-        datetime_mock.strptime.side_effect = lambda *args, **kwargs: real_datetime.strptime(*args, **kwargs)
+        datetime_mock.strptime.side_effect = lambda *args, **kwargs: (
+            real_datetime.strptime(*args, **kwargs)
+        )
 
         service = ParkingService(supabase=MagicMock())
         this_week_start, this_week_end, _ = service.parse_range(3, "4 PM", 6, "12 PM")
 
-        self.assertEqual(this_week_start, real_datetime(2026, 4, 2, 16, 0, tzinfo=parking_module.LOCAL_TZ))
-        self.assertEqual(this_week_end, real_datetime(2026, 4, 5, 12, 0, tzinfo=parking_module.LOCAL_TZ))
+        self.assertEqual(
+            this_week_start,
+            real_datetime(2026, 4, 2, 16, 0, tzinfo=parking_module.LOCAL_TZ),
+        )
+        self.assertEqual(
+            this_week_end,
+            real_datetime(2026, 4, 5, 12, 0, tzinfo=parking_module.LOCAL_TZ),
+        )
 
     @patch("bot.services.parking_service.datetime")
     def test_parse_range_treats_earlier_hour_as_next_week(self, datetime_mock):
         real_datetime = datetime
         current_time = real_datetime(2026, 4, 2, 16, 21, tzinfo=parking_module.LOCAL_TZ)
         datetime_mock.now.return_value = current_time
-        datetime_mock.strptime.side_effect = lambda *args, **kwargs: real_datetime.strptime(*args, **kwargs)
+        datetime_mock.strptime.side_effect = lambda *args, **kwargs: (
+            real_datetime.strptime(*args, **kwargs)
+        )
 
         service = ParkingService(supabase=MagicMock())
         next_week_start, next_week_end, _ = service.parse_range(3, "3 PM", 6, "12 PM")
 
-        self.assertEqual(next_week_start, real_datetime(2026, 4, 9, 15, 0, tzinfo=parking_module.LOCAL_TZ))
-        self.assertEqual(next_week_end, real_datetime(2026, 4, 12, 12, 0, tzinfo=parking_module.LOCAL_TZ))
+        self.assertEqual(
+            next_week_start,
+            real_datetime(2026, 4, 9, 15, 0, tzinfo=parking_module.LOCAL_TZ),
+        )
+        self.assertEqual(
+            next_week_end,
+            real_datetime(2026, 4, 12, 12, 0, tzinfo=parking_module.LOCAL_TZ),
+        )
 
     def test_create_offers_returns_two_line_resolved_date_confirmation(self):
         service = ParkingService(supabase=MagicMock())
@@ -466,12 +518,16 @@ class ParkingServiceTests(unittest.TestCase):
         table.lt.return_value = table
         table.gt.return_value = table
         table.insert.return_value = table
-        table.execute = AsyncMock(side_effect=[SimpleNamespace(data=[]), SimpleNamespace(data=[{"id": 1}])])
+        table.execute = AsyncMock(
+            side_effect=[SimpleNamespace(data=[]), SimpleNamespace(data=[{"id": 1}])]
+        )
 
         start = datetime(2026, 4, 2, 16, 0, tzinfo=parking_module.LOCAL_TZ)
         end = datetime(2026, 4, 5, 12, 0, tzinfo=parking_module.LOCAL_TZ)
 
-        success, message = asyncio.run(service.create_offers(1234, "TestUser", 27, start, end, 1))
+        success, message = asyncio.run(
+            service.create_offers(1234, "TestUser", 27, start, end, 1)
+        )
 
         self.assertTrue(success)
         self.assertEqual(
@@ -485,7 +541,9 @@ class ParkingServiceTests(unittest.TestCase):
         start = datetime(2026, 4, 6, 16, 0, tzinfo=parking_module.LOCAL_TZ)
         end = datetime(2026, 4, 6, 18, 0, tzinfo=parking_module.LOCAL_TZ)
 
-        success, message = asyncio.run(service.claim_staff_spot(1234, "TestUser", start, end))
+        success, message = asyncio.run(
+            service.claim_staff_spot(1234, "TestUser", start, end)
+        )
 
         self.assertFalse(success)
         self.assertIn("Blackout", message)
@@ -494,13 +552,18 @@ class ParkingServiceTests(unittest.TestCase):
     def test_claim_staff_spot_uses_second_staff_spot_when_first_is_overlapping(self):
         service = ParkingService(supabase=MagicMock())
         query = make_query([{"spot_number": 998}])
-        query.execute.side_effect = [SimpleNamespace(data=[{"spot_number": 998}]), SimpleNamespace(data=[{"id": 1}])]
+        query.execute.side_effect = [
+            SimpleNamespace(data=[{"spot_number": 998}]),
+            SimpleNamespace(data=[{"id": 1}]),
+        ]
         service.supabase = MagicMock()
         service.supabase.table.return_value = query
         start = datetime(2026, 4, 6, 18, 0, tzinfo=parking_module.LOCAL_TZ)
         end = datetime(2026, 4, 6, 20, 0, tzinfo=parking_module.LOCAL_TZ)
 
-        success, message = asyncio.run(service.claim_staff_spot(1234, "TestUser", start, end))
+        success, message = asyncio.run(
+            service.claim_staff_spot(1234, "TestUser", start, end)
+        )
 
         self.assertTrue(success)
         self.assertIn("Staff Spot reserved", message)
@@ -516,7 +579,9 @@ class ParkingServiceTests(unittest.TestCase):
             }
         )
 
-    def test_claim_staff_spot_rejects_overlapping_claim_when_both_staff_spots_are_taken(self, ):
+    def test_claim_staff_spot_rejects_overlapping_claim_when_both_staff_spots_are_taken(
+        self,
+    ):
         service = ParkingService(MagicMock())
         query = make_query([{"spot_number": 998}, {"spot_number": 999}])
         service.supabase = MagicMock()
@@ -524,7 +589,9 @@ class ParkingServiceTests(unittest.TestCase):
         start = datetime(2026, 4, 6, 18, 0, tzinfo=parking_module.LOCAL_TZ)
         end = datetime(2026, 4, 6, 20, 0, tzinfo=parking_module.LOCAL_TZ)
 
-        success, message = asyncio.run(service.claim_staff_spot(1234, "TestUser", start, end))
+        success, message = asyncio.run(
+            service.claim_staff_spot(1234, "TestUser", start, end)
+        )
 
         self.assertFalse(success)
         self.assertIn("full", message.lower())
@@ -560,7 +627,9 @@ class ParkingServiceTests(unittest.TestCase):
         query = MagicMock()
         query.update.return_value = query
         query.eq.return_value = query
-        query.execute = AsyncMock(return_value=SimpleNamespace(data=[{"spot_number": 27}]))
+        query.execute = AsyncMock(
+            return_value=SimpleNamespace(data=[{"spot_number": 27}])
+        )
         service.supabase = MagicMock()
         service.supabase.table.return_value = query
 
@@ -572,12 +641,17 @@ class ParkingServiceTests(unittest.TestCase):
         service.supabase.table.assert_called_with("parking_spots")
 
         # Check first update (clearing old spot)
-        self.assertEqual(query.update.call_args_list[0][0][0], {"discord_userid": None, "discord_nickname": None})
+        self.assertEqual(
+            query.update.call_args_list[0][0][0],
+            {"discord_userid": None, "discord_nickname": None},
+        )
         self.assertEqual(query.eq.call_args_list[0][0], ("discord_userid", "1234"))
 
         # Check second update (setting new spot)
-        self.assertEqual(query.update.call_args_list[1][0][0],
-                         {"discord_userid": "1234", "discord_nickname": "TestUser"})
+        self.assertEqual(
+            query.update.call_args_list[1][0][0],
+            {"discord_userid": "1234", "discord_nickname": "TestUser"},
+        )
         self.assertEqual(query.eq.call_args_list[1][0], ("spot_number", 27))
 
     @patch("bot.services.parking_service.datetime")
@@ -585,8 +659,12 @@ class ParkingServiceTests(unittest.TestCase):
         real_datetime = datetime
         current_time = real_datetime(2026, 4, 1, 12, 0, tzinfo=parking_module.LOCAL_TZ)
         datetime_mock.now.return_value = current_time
-        datetime_mock.strptime.side_effect = lambda *args, **kwargs: real_datetime.strptime(*args, **kwargs)
-        datetime_mock.fromisoformat.side_effect = lambda *args, **kwargs: real_datetime.fromisoformat(*args, **kwargs)
+        datetime_mock.strptime.side_effect = lambda *args, **kwargs: (
+            real_datetime.strptime(*args, **kwargs)
+        )
+        datetime_mock.fromisoformat.side_effect = lambda *args, **kwargs: (
+            real_datetime.fromisoformat(*args, **kwargs)
+        )
 
         class FakeResponse:
             def __init__(self, data):
@@ -626,7 +704,11 @@ class ParkingServiceTests(unittest.TestCase):
 
                 if self.mode == "delete":
                     ids_to_remove = {row["id"] for row in rows}
-                    self.store[self.name] = [row for row in self.store[self.name] if row["id"] not in ids_to_remove]
+                    self.store[self.name] = [
+                        row
+                        for row in self.store[self.name]
+                        if row["id"] not in ids_to_remove
+                    ]
 
                 response = FakeResponse(rows)
                 self.mode = "select"
@@ -674,7 +756,9 @@ class ParkingServiceTests(unittest.TestCase):
         service = ParkingService(MagicMock())
         service.supabase = FakeSupabase(store)
 
-        success, _message, pings = asyncio.run(service.cancel_action(1234, "offer", "offer-1"))
+        success, _message, pings = asyncio.run(
+            service.cancel_action(1234, "offer", "offer-1")
+        )
 
         self.assertTrue(success)
         self.assertEqual(pings, [])

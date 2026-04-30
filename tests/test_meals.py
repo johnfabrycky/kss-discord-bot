@@ -26,8 +26,18 @@ class MealsServiceTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.bot = SimpleNamespace(
             meal_cache=[
-                {"week_number": 3, "day": "Monday", "meal_type": "lunch", "dish_name": "Tacos"},
-                {"week_number": 3, "day": "Monday", "meal_type": "dinner", "dish_name": "Pasta"},
+                {
+                    "week_number": 3,
+                    "day": "Monday",
+                    "meal_type": "lunch",
+                    "dish_name": "Tacos",
+                },
+                {
+                    "week_number": 3,
+                    "day": "Monday",
+                    "meal_type": "dinner",
+                    "dish_name": "Pasta",
+                },
             ]
         )
         self.supabase = MagicMock()
@@ -53,7 +63,9 @@ class MealsServiceTests(unittest.IsolatedAsyncioTestCase):
 
     def test_get_active_break_name_returns_label_inside_break_window(self):
         current_date = datetime(2026, 3, 16, tzinfo=LOCAL_TZ)
-        self.assertEqual(self.service.get_active_break_name(current_date), "Spring Break 🌸")
+        self.assertEqual(
+            self.service.get_active_break_name(current_date), "Spring Break 🌸"
+        )
 
     def test_calculate_rotation_week_applies_configured_break_offset(self):
         current_date = datetime(2026, 3, 30, 12, 0, tzinfo=LOCAL_TZ)
@@ -62,16 +74,20 @@ class MealsServiceTests(unittest.IsolatedAsyncioTestCase):
     async def test_refresh_calendar_config_loads_from_supabase(self):
         # 1. Create the dummy data
         mock_data = SimpleNamespace(
-            data=[{
-                "semester_start": "2026-01-19T00:00:00-06:00",
-                "rotation_length_weeks": 4,
-                "academic_breaks": [{
-                    "name": "Spring Break 🌸",
-                    "start_date": "2026-03-14T00:00:00-06:00",
-                    "end_date": "2026-03-22T23:59:00-06:00",
-                    "rotation_skip_days": 7
-                }]
-            }]
+            data=[
+                {
+                    "semester_start": "2026-01-19T00:00:00-06:00",
+                    "rotation_length_weeks": 4,
+                    "academic_breaks": [
+                        {
+                            "name": "Spring Break 🌸",
+                            "start_date": "2026-03-14T00:00:00-06:00",
+                            "end_date": "2026-03-22T23:59:00-06:00",
+                            "rotation_skip_days": 7,
+                        }
+                    ],
+                }
+            ]
         )
 
         # 2. Create a bulletproof query builder mock
@@ -108,7 +124,9 @@ class MealsCogTests(unittest.IsolatedAsyncioTestCase):
 
         # Replace the real service with a MagicMock to isolate testing to just the Cog UI
         self.cog.meals_service = MagicMock(spec=MealsService)
-        self.cog.meals_service.calendar_config = True  # Ensure the service looks "loaded"
+        self.cog.meals_service.calendar_config = (
+            True  # Ensure the service looks "loaded"
+        )
 
     @patch("bot.cogs.meals.datetime")
     async def test_today_returns_unavailable_if_config_missing(self, datetime_mock):
@@ -145,8 +163,9 @@ class MealsCogTests(unittest.IsolatedAsyncioTestCase):
         # Configure the mock service to return standard non-break data
         self.cog.meals_service.get_active_break_name.return_value = None
         self.cog.meals_service.calculate_rotation_week.return_value = 3
-        self.cog.meals_service.get_meal_from_cache.side_effect = (lambda week, day,
-                                                                         meal: "Tacos" if meal == "lunch" else "Pasta")
+        self.cog.meals_service.get_meal_from_cache.side_effect = (
+            lambda week, day, meal: "Tacos" if meal == "lunch" else "Pasta"
+        )
 
         interaction = make_interaction()
 

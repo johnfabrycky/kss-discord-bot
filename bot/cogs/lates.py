@@ -19,7 +19,15 @@ class Lates(commands.Cog):
         """Initialize the cog and start the nightly cleanup loop."""
         self.bot = bot
         self.service = LatesService(bot.supabase)
-        self.days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        self.days = [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+        ]
         self.meals = ["Lunch", "Dinner"]
         self.cleanup_loop.start()
 
@@ -39,7 +47,10 @@ class Lates(commands.Cog):
         now_chicago = datetime.now(local_tz)
         yesterday = now_chicago - timedelta(days=1)
         yesterday_name = yesterday.strftime("%A")
-        print(f"⏰ Midnight Cleanup Triggered. Cleaning up lates for: {yesterday_name}", flush=True)
+        print(
+            f"⏰ Midnight Cleanup Triggered. Cleaning up lates for: {yesterday_name}",
+            flush=True,
+        )
         await self.perform_cleanup(day_to_clean=yesterday_name)
 
     async def perform_cleanup(self, day_to_clean: str = None):
@@ -47,7 +58,10 @@ class Lates(commands.Cog):
         count = await self.service.perform_cleanup(day_to_clean)
         scope = day_to_clean if day_to_clean else "ALL"
         if count is not None:
-            print(f"🧹 Cleanup Complete: Removed {count} temp lates for {scope}.", flush=True)
+            print(
+                f"🧹 Cleanup Complete: Removed {count} temp lates for {scope}.",
+                flush=True,
+            )
         return count
 
     @commands.command(name="force_cleanup")
@@ -64,15 +78,30 @@ class Lates(commands.Cog):
 
     @app_commands.command(name="view_lates", description="See lates for your house")
     @app_commands.choices(
-        day=[app_commands.Choice(name=day, value=day) for day in
-             ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]],
-        meal=[app_commands.Choice(name="Lunch", value="Lunch"), app_commands.Choice(name="Dinner", value="Dinner")],
+        day=[
+            app_commands.Choice(name=day, value=day)
+            for day in [
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+                "Sunday",
+            ]
+        ],
+        meal=[
+            app_commands.Choice(name="Lunch", value="Lunch"),
+            app_commands.Choice(name="Dinner", value="Dinner"),
+        ],
     )
     async def view_lates(self, interaction: discord.Interaction, day: str, meal: str):
         """Show late requests visible to the caller's house group instantly from memory."""
         house = self._get_user_house(interaction.user)
         if not house:
-            return await interaction.response.send_message("❌ No house role detected.", ephemeral=True)
+            return await interaction.response.send_message(
+                "❌ No house role detected.", ephemeral=True
+            )
 
         filtered_list = []
         for info in await self.service.get_visible_lates(house, day, meal):
@@ -95,20 +124,39 @@ class Lates(commands.Cog):
 
     @app_commands.command(name="late_me", description="Request food to be set aside")
     @app_commands.choices(
-        day=[app_commands.Choice(name=day, value=day) for day in
-             ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]],
-        meal=[app_commands.Choice(name="Lunch", value="Lunch"), app_commands.Choice(name="Dinner", value="Dinner")],
-        duration=[app_commands.Choice(name="Permanent", value="True"),
-                  app_commands.Choice(name="Temporary", value="False")],
+        day=[
+            app_commands.Choice(name=day, value=day)
+            for day in [
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+                "Sunday",
+            ]
+        ],
+        meal=[
+            app_commands.Choice(name="Lunch", value="Lunch"),
+            app_commands.Choice(name="Dinner", value="Dinner"),
+        ],
+        duration=[
+            app_commands.Choice(name="Permanent", value="True"),
+            app_commands.Choice(name="Temporary", value="False"),
+        ],
     )
-    async def late_me(self, interaction: discord.Interaction, day: str, meal: str, duration: str):
+    async def late_me(
+        self, interaction: discord.Interaction, day: str, meal: str, duration: str
+    ):
         """Create a temporary or permanent late request for the caller."""
         # Defer is kept here because this is a database WRITE
         await interaction.response.defer(ephemeral=True)
 
         house = self._get_user_house(interaction.user)
         if not house:
-            return await interaction.followup.send("❌ You must have a house role to use this.", ephemeral=True)
+            return await interaction.followup.send(
+                "❌ You must have a house role to use this.", ephemeral=True
+            )
 
         success, _result = await self.service.create_late(
             interaction.user.id,
@@ -119,21 +167,28 @@ class Lates(commands.Cog):
             duration == "True",
         )
         if not success:
-            return await interaction.followup.send("❌ You already have a late for this meal.", ephemeral=True)
+            return await interaction.followup.send(
+                "❌ You already have a late for this meal.", ephemeral=True
+            )
 
-        await interaction.followup.send(f"✅ Late recorded for **{day} {meal}** ({house.capitalize()}).", ephemeral=True)
+        await interaction.followup.send(
+            f"✅ Late recorded for **{day} {meal}** ({house.capitalize()}).",
+            ephemeral=True,
+        )
 
     async def late_days_autocomplete(
-            self,
-            interaction: discord.Interaction,
-            current: str,
+        self,
+        interaction: discord.Interaction,
+        current: str,
     ) -> list[app_commands.Choice[str]]:
         """Return the caller's existing lates instantly from memory as autocomplete choices."""
         try:
             rows = await self.service.get_autocomplete_lates(interaction.user.id)
         except Exception:
-            logger.exception("Late autocomplete failed",
-                             extra={"user_id": str(interaction.user.id), "current": current})
+            logger.exception(
+                "Late autocomplete failed",
+                extra={"user_id": str(interaction.user.id), "current": current},
+            )
             return []
 
         choices = []
@@ -148,7 +203,9 @@ class Lates(commands.Cog):
 
         return choices[:25]
 
-    @app_commands.command(name="clear_late", description="Select an existing late request to remove")
+    @app_commands.command(
+        name="clear_late", description="Select an existing late request to remove"
+    )
     @app_commands.autocomplete(selection=late_days_autocomplete)
     async def clear_late(self, interaction: discord.Interaction, selection: str):
         """Delete one late request selected from autocomplete."""
@@ -159,23 +216,31 @@ class Lates(commands.Cog):
         try:
             day, meal = selection.split("|")
         except ValueError:
-            return await interaction.followup.send("❌ Invalid selection.", ephemeral=True)
+            return await interaction.followup.send(
+                "❌ Invalid selection.", ephemeral=True
+            )
 
         if await self.service.clear_late(user_id, day, meal):
-            await interaction.followup.send(f"🗑️ Your {day} {meal} late has been cleared.", ephemeral=True)
+            await interaction.followup.send(
+                f"🗑️ Your {day} {meal} late has been cleared.", ephemeral=True
+            )
         else:
             await interaction.followup.send(
                 "❌ Could not find that late. It may have already been cleared.",
                 ephemeral=True,
             )
 
-    @app_commands.command(name="my_lates", description="See all the meals you've requested lates for")
+    @app_commands.command(
+        name="my_lates", description="See all the meals you've requested lates for"
+    )
     async def my_lates(self, interaction: discord.Interaction):
         """List every currently active late request owned by the caller instantly from memory."""
         rows = await self.service.get_user_lates(interaction.user.id)
 
         if not rows:
-            return await interaction.response.send_message("You don't have any active lates.", ephemeral=True)
+            return await interaction.response.send_message(
+                "You don't have any active lates.", ephemeral=True
+            )
 
         found_lates = [
             f"• **{row['day_of_week']} {row['meal']}**: {'🔄 Permanent' if row['is_permanent'] else '⏱️ This week'}"
