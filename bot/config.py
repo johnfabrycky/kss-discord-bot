@@ -25,6 +25,20 @@ LOCAL_TZ = pytz.timezone("America/Chicago")
 PERMIT_SPOTS = list(range(1, 34)) + list(range(41, 47))
 STAFF_SPOTS = [998, 999]
 
+# Blackout periods for staff parking reservations.
+# Each tuple is (weekday, start_hour, end_hour), where end_hour is exclusive.
+# Weekdays are Monday=0 to Sunday=6.
+STAFF_PARKING_BLACKOUTS = [
+    # Monday-Friday, before 5 PM (00:00 - 16:59)
+    (0, 0, 17),
+    (1, 0, 17),
+    (2, 0, 17),
+    (3, 0, 17),
+    (4, 0, 17),
+    # Sunday, 2 AM - 2 PM (02:00 - 13:59)
+    (6, 2, 14),
+]
+
 MINIMUM_RESERVATION_HOURS = 1
 MAXIMUM_RESERVATION_DAYS = 3
 MAXIMUM_RESERVATION_HOURS = MAXIMUM_RESERVATION_DAYS * 24

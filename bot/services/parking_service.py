@@ -5,7 +5,13 @@ from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from supabase import AsyncClient
 
-from bot.config import LOCAL_TZ, MINIMUM_RESERVATION_HOURS, PERMIT_SPOTS, STAFF_SPOTS
+from bot.config import (
+    LOCAL_TZ,
+    MINIMUM_RESERVATION_HOURS,
+    PERMIT_SPOTS,
+    STAFF_PARKING_BLACKOUTS,
+    STAFF_SPOTS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -201,8 +207,9 @@ class ParkingService:
         curr = start
         while curr < end:
             d, h = curr.weekday(), curr.hour
-            if (d < 5 and h < 17) or (d == 6 and 2 <= h < 14):
-                return True
+            for blackout_day, blackout_start, blackout_end in STAFF_PARKING_BLACKOUTS:
+                if d == blackout_day and blackout_start <= h < blackout_end:
+                    return True
             curr += timedelta(hours=1)
         return False
 
