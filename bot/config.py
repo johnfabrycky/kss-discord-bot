@@ -9,34 +9,32 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# --- Core Bot Settings ---
 BASE_DIR = Path(__file__).resolve().parent.parent
 GUILD_ID = os.getenv("GUILD_ID")
 MY_GUILD = discord.Object(id=GUILD_ID)
-
+BOT_NAME = "Felipe"
 EXTENSIONS = [
     "bot.cogs.meals",
     "bot.cogs.lates",
     "bot.cogs.parking",
     "bot.cogs.feedback",
 ]
-
 LOCAL_TZ = pytz.timezone("America/Chicago")
 
+
+# --- Parking System Settings ---
 PERMIT_SPOTS = list(range(1, 34)) + list(range(41, 47))
 STAFF_SPOTS = [998, 999]
 
-WEEKEND_GUEST_HOURS_END = 2 # Guest hours end at 2 AM
-SUNDAY_STAFF_BLACKOUT_END_HOUR = 14  # 2 PM
 # Blackout periods for staff parking reservations.
+WEEKEND_GUEST_HOURS_END = 2  # Guest hours end at 2 AM
+SUNDAY_STAFF_BLACKOUT_END_HOUR = 14  # 2 PM
 # Each tuple is (weekday, start_hour, end_hour), where end_hour is exclusive.
 # Weekdays are Monday=0 to Sunday=6.
 STAFF_PARKING_BLACKOUTS = [
     # Monday-Friday, before 5 PM (00:00 - 16:59)
-    (0, 0, 17),
-    (1, 0, 17),
-    (2, 0, 17),
-    (3, 0, 17),
-    (4, 0, 17),
+    *[(day, 0, 17) for day in range(5)],
     # Sunday, 2 AM - 2 PM (02:00 - 13:59)
     (6, WEEKEND_GUEST_HOURS_END, SUNDAY_STAFF_BLACKOUT_END_HOUR),
 ]
@@ -50,7 +48,10 @@ MAXIMUM_OFFER_DAYS = 7
 
 CLAIM_SPOT_MAX_AUTOCOMPLETE_CHOICES = 5
 CANCEL_SPOT_MAX_AUTOCOMPLETE_CHOICES = 25
-
 PARKING_STATUS_CACHE_TTL_SECONDS = 15
 
-BOT_NAME = "Felipe"
+
+# --- Discord API Settings ---
+DISCORD_EMBED_FIELD_VALUE_LIMIT = 1024
+TRUNCATION_SUFFIX = "..."
+TRUNCATION_LIMIT = DISCORD_EMBED_FIELD_VALUE_LIMIT - len(TRUNCATION_SUFFIX)
