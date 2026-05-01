@@ -10,3 +10,5 @@ WEEKDAYS = [
     (SA, "Saturday"),
     (SU, "Sunday"),
 ]
+
+NOON = 12
