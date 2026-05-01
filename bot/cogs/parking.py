@@ -11,6 +11,8 @@ from discord.ext import commands
 from bot.config import (
     BOT_NAME,
     CANCEL_SPOT_MAX_AUTOCOMPLETE_CHOICES,
+    DISCORD_EMBED_FIELD_VALUE_LIMIT,
+    TRUNCATION_LIMIT,
     CLAIM_SPOT_MAX_AUTOCOMPLETE_CHOICES,
     LOCAL_TZ,
     MAXIMUM_RESERVATION_DAYS,
@@ -18,10 +20,11 @@ from bot.config import (
     MINIMUM_RESERVATION_HOURS,
     PARKING_STATUS_CACHE_TTL_SECONDS,
     PERMIT_SPOTS,
+    TRUNCATION_SUFFIX,
     STAFF_SPOTS,
 )
 from bot.services.parking_service import ParkingService
-from bot.utils.constants import WEEKDAYS
+from bot.utils.constants import WEEKDAYS, NOON
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +37,8 @@ class Parking(commands.Cog):
     ]
     time_choices = [
         app_commands.Choice(
-            name=f"{i % 12 or 12} {'AM' if i < 12 else 'PM'}",
-            value=f"{i % 12 or 12} {'AM' if i < 12 else 'PM'}",
+            name=f"{i % NOON or NOON} {'AM' if i < NOON else 'PM'}",
+            value=f"{i % NOON or NOON} {'AM' if i < NOON else 'PM'}",
         )
         for i in range(24)
     ]
@@ -564,12 +567,12 @@ class Parking(commands.Cog):
                 timestamp=datetime.now(LOCAL_TZ),
             )
             res_value = "\n".join(lines) if lines else "No spots currently offered."
-            if len(res_value) > 1024:
-                res_value = res_value[:1020] + "..."
+            if len(res_value) > DISCORD_EMBED_FIELD_VALUE_LIMIT:
+                res_value = res_value[:TRUNCATION_LIMIT] + TRUNCATION_SUFFIX
 
             staff_value = "\n".join(staff_lines)
-            if len(staff_value) > 1024:
-                staff_value = staff_value[:1020] + "..."
+            if len(staff_value) > DISCORD_EMBED_FIELD_VALUE_LIMIT:
+                staff_value = staff_value[:TRUNCATION_LIMIT] + TRUNCATION_SUFFIX
 
             embed.add_field(
                 name="Resident/Guest Spots (Next 7 Days)", value=res_value, inline=False
