@@ -2,8 +2,9 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 
-from dateutil.relativedelta import relativedelta
+from dateutil.relativedelta import FR, MO, SA, SU, TH, TU, WE, relativedelta
 from supabase import AsyncClient
+from bot.utils.constants import NOON
 
 from bot.config import (
     LOCAL_TZ,
@@ -11,6 +12,7 @@ from bot.config import (
     PERMIT_SPOTS,
     STAFF_PARKING_BLACKOUTS,
     STAFF_SPOTS,
+    WEEKEND_GUEST_HOURS_END,
 )
 
 logger = logging.getLogger(__name__)
@@ -105,9 +107,6 @@ class ParkingService:
     def parse_range(self, s_day_int, s_time_str, e_day_int, e_time_str):
         """Convert weekday and hour choices into the next matching start/end datetimes."""
         now = datetime.now(LOCAL_TZ).replace(minute=0, second=0, microsecond=0)
-
-        from dateutil.relativedelta import FR, MO, SA, SU, TH, TU, WE
-
         day_map = {0: MO, 1: TU, 2: WE, 3: TH, 4: FR, 5: SA, 6: SU}
 
         def to_dt(day_val, time_str, reference_date):
@@ -136,8 +135,8 @@ class ParkingService:
 
     def _format_datetime_label(self, value):
         """Format a datetime as a human-readable weekday/date/time label."""
-        hour = value.hour % 12 or 12
-        am_pm = "AM" if value.hour < 12 else "PM"
+        hour = value.hour % NOON or NOON
+        am_pm = "AM" if value.hour < NOON else "PM"
         return f"{value.strftime('%a %b')} {value.day} at {hour}:{value.strftime('%M')} {am_pm}"
 
     async def load_cache(self):
@@ -635,9 +634,9 @@ class ParkingService:
                     reset_time_string = (
                         "Sun 2 AM"
                         if (
-                            now.weekday() == 4
-                            or now.weekday() == 5
-                            or (now.weekday() == 6 and now.hour < 2)
+                            now.weekday() == FR.weekday
+                            or now.weekday() == SA.weekday
+                            or (now.weekday() == SU.weekday and now.hour < WEEKEND_GUEST_HOURS_END)
                         )
                         else "12 AM"
                     )

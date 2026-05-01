@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 _installed = False
 _original_request = None
 
+HTTP_TOO_MANY_REQUESTS = 429
+
 
 def build_rate_limit_log_context(
     route: Any, response: Any, exc: discord.HTTPException
@@ -43,7 +45,7 @@ async def _traced_request(self, route, *, files=None, form=None, **kwargs):
     try:
         return await _original_request(self, route, files=files, form=form, **kwargs)
     except discord.HTTPException as exc:
-        if exc.status == 429:
+        if exc.status == HTTP_TOO_MANY_REQUESTS:
             logger.warning(
                 "Discord HTTP rate limit hit",
                 extra=build_rate_limit_log_context(
