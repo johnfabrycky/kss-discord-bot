@@ -41,13 +41,13 @@ class ParkingService:
 
             # Run sequentially instead of using asyncio.gather to satisfy strict lock testing
             offers = (
-                await self.supabase.table("parking_offers")
+                self.supabase.table("parking_offers")
                 .select("*")
                 .gt("end_time", now_iso)
                 .execute()
             )
             claims = (
-                await self.supabase.table("parking_reservations")
+                self.supabase.table("parking_reservations")
                 .select("*")
                 .gt("end_time", now_iso)
                 .execute()
@@ -71,7 +71,7 @@ class ParkingService:
         """Persist the caller's last successful offer spot without failing the command."""
         try:
             # Clear any existing spot ownership for this user
-            await (
+            (
                 self.supabase.table("parking_spots")
                 .update(
                     {
@@ -84,7 +84,7 @@ class ParkingService:
             )
 
             # Set ownership on the newly offered spot
-            await (
+            (
                 self.supabase.table("parking_spots")
                 .update(
                     {
@@ -143,7 +143,7 @@ class ParkingService:
         """Load mostly-static data into memory to reduce database hits."""
         try:
             response = (
-                await self.supabase.table("parking_spots")
+                self.supabase.table("parking_spots")
                 .select("spot_number")
                 .eq("is_guest", True)
                 .execute()
@@ -158,7 +158,7 @@ class ParkingService:
         try:
             # 1. Fast check to see if ANY row exists
             check_response = (
-                await self.supabase.table("parking_spots")
+                self.supabase.table("parking_spots")
                 .select("spot_number")
                 .limit(1)
                 .execute()
@@ -195,7 +195,7 @@ class ParkingService:
                 )
 
             # 4. Batch insert all new spots
-            await self.supabase.table("parking_spots").insert(all_configs).execute()
+            self.supabase.table("parking_spots").insert(all_configs).execute()
             logger.info(f"Successfully initialized {len(all_configs)} parking spots!")
 
         except Exception:
@@ -265,7 +265,7 @@ class ParkingService:
                     end = base_end + timedelta(weeks=i)
 
                     existing = (
-                        await self.supabase.table("parking_offers")
+                        self.supabase.table("parking_offers")
                         .select("*")
                         .eq("spot_number", int(spot))
                         .lt("start_time", end.isoformat())
@@ -287,7 +287,7 @@ class ParkingService:
                 if not all_offers:
                     return False, "❌ This spot is already offered for those times."
 
-                await self.supabase.table("parking_offers").insert(all_offers).execute()
+                self.supabase.table("parking_offers").insert(all_offers).execute()
 
                 start_label = self._format_datetime_label(base_start)
                 end_label = self._format_datetime_label(base_end)
@@ -308,7 +308,7 @@ class ParkingService:
         """Reserve a guest spot or a resident spot covered by an existing offer."""
         async with self._get_mutation_lock_for_spot(spot):
             conflict = (
-                await self.supabase.table("parking_reservations")
+                self.supabase.table("parking_reservations")
                 .select("*")
                 .eq("spot_number", int(spot))
                 .lt("start_time", end.isoformat())
@@ -322,7 +322,7 @@ class ParkingService:
             offer_id = None
             if int(spot) not in self.guest_spots_cache:
                 offer = (
-                    await self.supabase.table("parking_offers")
+                    self.supabase.table("parking_offers")
                     .select("id")
                     .eq("spot_number", int(spot))
                     .lte("start_time", start.isoformat())
@@ -334,7 +334,7 @@ class ParkingService:
                     return False, f"❌ Spot {spot} isn't offered for that window."
                 offer_id = offer.data[0]["id"]
 
-            await (
+            (
                 self.supabase.table("parking_reservations")
                 .insert(
                     {
@@ -366,7 +366,7 @@ class ParkingService:
                 return False, "❌ Blackout hours active."
 
             conflicts = (
-                await self.supabase.table("parking_reservations")
+                self.supabase.table("parking_reservations")
                 .select("spot_number")
                 .in_("spot_number", STAFF_SPOTS)
                 .lt("start_time", end.isoformat())
@@ -382,7 +382,7 @@ class ParkingService:
             assigned = (
                 STAFF_SPOTS[0] if STAFF_SPOTS[0] not in occupied else STAFF_SPOTS[1]
             )
-            await (
+            (
                 self.supabase.table("parking_reservations")
                 .insert(
                     {
@@ -413,7 +413,7 @@ class ParkingService:
                 "parking_offers" if action_type == "offer" else "parking_reservations"
             )
             response = (
-                await self.supabase.table(table_name)
+                self.supabase.table(table_name)
                 .select("spot_number")
                 .eq("id", str(record_id))
                 .execute()
@@ -434,7 +434,7 @@ class ParkingService:
 
             if action_type == "offer":
                 target = (
-                    await self.supabase.table("parking_offers")
+                    self.supabase.table("parking_offers")
                     .select("*")
                     .eq("owner_id", str(user_id))
                     .eq("id", str(record_id))
@@ -447,18 +447,18 @@ class ParkingService:
 
                 offer = target.data[0]
                 claims = (
-                    await self.supabase.table("parking_reservations")
+                    self.supabase.table("parking_reservations")
                     .select("claimer_id")
                     .eq("offer_id", str(record_id))
                     .execute()
                 )
-                await (
+                (
                     self.supabase.table("parking_reservations")
                     .delete()
                     .eq("offer_id", str(record_id))
                     .execute()
                 )
-                await (
+                (
                     self.supabase.table("parking_offers")
                     .delete()
                     .eq("id", str(record_id))
@@ -474,7 +474,7 @@ class ParkingService:
                 return True, f"🔄 {spot_label} offer withdrawn.", pings
 
             target = (
-                await self.supabase.table("parking_reservations")
+                self.supabase.table("parking_reservations")
                 .select("*")
                 .eq("claimer_id", str(user_id))
                 .eq("id", str(record_id))
@@ -486,7 +486,7 @@ class ParkingService:
                 return False, "No matching claims.", None
 
             reservation = target.data[0]
-            await (
+            (
                 self.supabase.table("parking_reservations")
                 .delete()
                 .eq("id", str(record_id))

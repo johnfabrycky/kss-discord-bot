@@ -19,7 +19,7 @@ class LatesService:
     async def refresh_lates_cache(self):
         """Fetches all active late plates from Supabase and stores them in memory."""
         try:
-            res = await self.supabase.table("lates").select("*").execute()
+            res = self.supabase.table("lates").select("*").execute()
             self.lates_cache = res.data or []
             logger.info(
                 f"Lates cache refreshed: {len(self.lates_cache)} total lates loaded."
@@ -43,7 +43,7 @@ class LatesService:
             if day_to_clean:
                 query = query.eq("day_of_week", day_to_clean)
 
-            res = await query.execute()
+            res = query.execute()
             count = len(res.data) if res.data else 0
 
             ping_url = os.getenv("HEALTHCHECK_URL")
@@ -103,7 +103,7 @@ class LatesService:
             "day_of_week": day,
             "is_permanent": is_permanent,
         }
-        await self.supabase.table("lates").insert(payload).execute()
+        self.supabase.table("lates").insert(payload).execute()
 
         # 3. Synchronize cache
         await self.refresh_lates_cache()
@@ -125,7 +125,7 @@ class LatesService:
     async def clear_late(self, user_id, day, meal):
         """Delete one late request for the caller."""
         res = (
-            await self.supabase.table("lates")
+            self.supabase.table("lates")
             .delete()
             .eq("user_id", str(user_id))
             .eq("day_of_week", day)
