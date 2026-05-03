@@ -18,17 +18,11 @@ class Lates(commands.Cog):
         """Initialize the cog and start the nightly cleanup loop."""
         self.bot = bot
         self.service = LatesService(bot.supabase)
-        self.days = [
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday",
-            "Sunday",
-        ]
         self.meals = ["Lunch", "Dinner"]
         self.cleanup_loop.start()
+
+    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    day_choices = [app_commands.Choice(name=day, value=day) for day in days]
 
     async def cog_load(self):
         """Initialize the lates cache when the Cog boots up."""
@@ -63,32 +57,28 @@ class Lates(commands.Cog):
             )
         return count
 
-    @commands.command(name="force_cleanup")
-    @commands.has_permissions(administrator=True)
-    async def manual_cleanup(self, ctx):
+    @app_commands.command(
+        name="force_cleanup",
+        description="[Admin] Manually trigger a total wipe of all temporary lates.",
+    )
+    @app_commands.default_permissions(administrator=True)
+    async def manual_cleanup(self, interaction: discord.Interaction):
         """Manually trigger a total wipe of all temporary lates."""
-        await ctx.send("Deleting **all** temporary lates across all days... 🧹")
+        await interaction.response.defer(ephemeral=True)
         count = await self.perform_cleanup()
 
         if count is not None:
-            await ctx.send(f"✅ Success! Removed {count} temporary lates.")
+            await interaction.followup.send(
+                f"✅ Success! Removed {count} temporary lates.", ephemeral=True
+            )
         else:
-            await ctx.send("❌ Cleanup failed. Check bot console for errors.")
+            await interaction.followup.send(
+                "❌ Cleanup failed. Check bot console for errors.", ephemeral=True
+            )
 
     @app_commands.command(name="view_lates", description="See lates for your house")
     @app_commands.choices(
-        day=[
-            app_commands.Choice(name=day, value=day)
-            for day in [
-                "Monday",
-                "Tuesday",
-                "Wednesday",
-                "Thursday",
-                "Friday",
-                "Saturday",
-                "Sunday",
-            ]
-        ],
+        day=day_choices,
         meal=[
             app_commands.Choice(name="Lunch", value="Lunch"),
             app_commands.Choice(name="Dinner", value="Dinner"),
@@ -123,18 +113,7 @@ class Lates(commands.Cog):
 
     @app_commands.command(name="late_me", description="Request food to be set aside")
     @app_commands.choices(
-        day=[
-            app_commands.Choice(name=day, value=day)
-            for day in [
-                "Monday",
-                "Tuesday",
-                "Wednesday",
-                "Thursday",
-                "Friday",
-                "Saturday",
-                "Sunday",
-            ]
-        ],
+        day=day_choices,
         meal=[
             app_commands.Choice(name="Lunch", value="Lunch"),
             app_commands.Choice(name="Dinner", value="Dinner"),
