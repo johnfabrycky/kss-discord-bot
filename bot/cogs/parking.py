@@ -21,6 +21,7 @@ from bot.config import (
     PARKING_STATUS_CACHE_TTL_SECONDS,
     PERMIT_SPOTS,
     TRUNCATION_SUFFIX,
+    STAFF_PARKING_BLACKOUTS,
     STAFF_SPOTS,
 )
 from bot.services.parking_service import ParkingService
@@ -521,14 +522,7 @@ class Parking(commands.Cog):
                     )
                     lines.append(f"**Spot {spot_num}**: {header}\n{detail}")
 
-            # Determine staff cutoff (2 AM for Fri/Sat, 12 AM otherwise)
-            is_weekend = now.weekday() in {4, 5}
-            staff_cutoff = (
-                now.replace(hour=2, minute=0) + timedelta(days=1)
-                if is_weekend
-                else now.replace(hour=0, minute=0) + timedelta(days=1)
-            )
-
+            staff_cutoff = self.service.get_staff_cutoff(now)
             staff_lines = []
             staff_offers = self.service.get_staff_availability_windows(
                 now, staff_cutoff
@@ -709,6 +703,49 @@ class Parking(commands.Cog):
     )
     async def parking_help(self, interaction: discord.Interaction):
         """Send an overview of parking commands, rules, and guest spot details."""
+
+        def format_spot_list(spots: list[int]) -> str:
+            """Converts a list of numbers into a compact string like '1-3, 5, 7-8'."""
+            if not spots:
+                return "None"
+
+            spots = sorted(list(set(spots)))
+            ranges = []
+            start = spots[0]
+
+            for i in range(1, len(spots)):
+                if spots[i] != spots[i - 1] + 1:
+                    end = spots[i - 1]
+                    ranges.append(str(start) if start == end else f"{start}-{end}")
+                    start = spots[i]
+
+            end = spots[-1]
+            ranges.append(str(start) if start == end else f"{start}-{end}")
+            return ", ".join(ranges)
+
+        def format_blackouts(blackouts: list[tuple]) -> str:
+            """Converts the blackout config into a human-readable list."""
+            days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            lines = []
+            grouped_by_time = {}
+            for day_idx, start_hr, end_hr in blackouts:
+                key = (start_hr, end_hr)
+                grouped_by_time.setdefault(key, []).append(day_idx)
+
+            for (start_hr, end_hr), day_indices in sorted(grouped_by_time.items()):
+                day_indices.sort()
+                day_str = (
+                    "Mon-Fri"
+                    if day_indices == [0, 1, 2, 3, 4]
+                    else ", ".join([days[i] for i in day_indices])
+                )
+                start_hour = start_hr % NOON or NOON
+                start_ampm = "AM" if start_hr < NOON else "PM"
+                end_hour = end_hr % NOON or NOON
+                end_ampm = "AM" if end_hr < NOON else "PM"
+                lines.append(f"• {day_str}: {start_hour} {start_ampm} - {end_hour} {end_ampm}")
+            return "\n".join(lines)
+
         guest_list_str = await self.service.get_guest_spot_list()
 
         embed = discord.Embed(
@@ -730,7 +767,7 @@ class Parking(commands.Cog):
             value=(
                 f"**Guest Spot(s): {guest_list_str}**\n"
                 "Always available to claim up to 7 days in advance.\n\n"
-                "**All parking spots are 1-33 and 41-46.**\n"
+                f"**All resident spots are: {format_spot_list(PERMIT_SPOTS)}**\n"
                 "Spots currently marked as guest spots can be claimed directly.\n"
                 "Any spot not marked as a guest spot must be offered by the owner first.\n\n"
                 "`/offer_spot` - Owners list their spot for others to use.\n"
@@ -739,13 +776,12 @@ class Parking(commands.Cog):
             ),
             inline=False,
         )
+        blackout_str = format_blackouts(STAFF_PARKING_BLACKOUTS)
         embed.add_field(
             name="⛪ Staff Parking",
             value=(
                 "`/claim_staff` - Reserve one of the 2 available staff spots.\n"
-                "**Blackout Rules:** Staff spots cannot be reserved during:\n"
-                "• Mon-Fri: Before 5:00 PM\n"
-                "• Sunday: 2:00 AM - 2:00 PM"
+                f"**Blackout Rules:** Staff spots cannot be reserved during:\n{blackout_str}"
             ),
             inline=False,
         )

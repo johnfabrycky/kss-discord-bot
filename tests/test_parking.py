@@ -458,7 +458,7 @@ class ParkingCogTests(unittest.IsolatedAsyncioTestCase):
         embed = interaction.response.send_message.await_args.kwargs["embed"]
         self.assertEqual(embed.title, "🚗 Parking System Guide")
         self.assertIn("Guest Spot(s): 46", embed.fields[1].value)
-        self.assertIn("All parking spots are 1-33 and 41-46.", embed.fields[1].value)
+        self.assertIn("**All resident spots are: 1-33, 41-46**", embed.fields[1].value)
         self.assertNotIn("Resident Spots (1-33, 41-45)", embed.fields[1].value)
         self.assertNotIn("Leave [spot] blank", embed.fields[0].value)
 
