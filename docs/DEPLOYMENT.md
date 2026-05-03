@@ -1,85 +1,53 @@
 # Deployment & Setup Guide
 
-This guide provides comprehensive instructions for setting up and deploying the bot, from a local development environment to a production cloud service.
+This guide provides two paths for deploying the bot:
 
-## 1. Prerequisites
-
-Before you begin, ensure you have the following:
-
-- Python 3.8 or higher.
-- A Discord account with permissions to create applications and add bots to a server.
-- A free [Supabase](https://supabase.com/) account for the database.
-- [Git](https://git-scm.com/downloads) installed on your machine.
-
-## 2. Local Setup & Configuration
-
-### Step 2.1: Clone the Repository
-
-First, clone the project repository to your local machine:
-
-```bash
-git clone https://github.com/johnfabrycky/kss-discord-bot.git
-cd kss-discord-bot
-```
-
-### Step 2.2: Install Dependencies
-
-It's highly recommended to use a virtual environment to manage project dependencies.
-
-```bash
-# Create and activate a virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows, use: venv\Scripts\activate
-
-# Install the required packages
-pip install -r requirements.txt
-```
-
-The bot should now be online and ready to respond to commands in your Discord server.
+* **Cloud Deployment (Recommended):** The easiest way to get started. This involves forking the repository on GitHub and deploying directly to a cloud service like Render without needing to run any code on your own machine.
+* **Local Development:** For users who want to run the bot on their own computer for testing or development purposes.
 
 ---
 
-## Cloud Deployment (Render)
+## Cloud Deployment (via Fork)
 
-### 1. Prerequisites
+This method allows you to set up and run the bot without cloning the repository to your local machine.
 
-- A [Supabase](https://supabase.com/) account with access to the project's organization.
-- A [Render](https://dashboard.render.com/) account with a Web Service connected to your bot's GitHub repository.
-- A [Healthchecks.io](https://healthchecks.io/) account for monitoring cron jobs.
-- An [UptimeRobot](https://dashboard.uptimerobot.com/) account for keeping the service alive.
+### Step 1: Fork the Repository
+Click the **Fork** button at the top-right of the GitHub repository page. This will create a personal copy of the project under your own GitHub account.
 
-### 2. Ongoing Deployment
+### Step 2: Set Up External Services
+You will need credentials from **Discord** and **Supabase**.
 
-1. **Automatic Deploys:**
-   By default, Render will automatically deploy any new commits pushed to your main branch.
+#### 1. Discord Application
+1.  Go to the [Discord Developer Portal](https://discord.com/developers/applications).
+2.  Click **New Application** and give it a name.
+3.  Navigate to the **Bot** tab.
+4.  Under **Privileged Gateway Intents**, enable the **Server Members Intent**. This is required for the bot to see member roles.
+5.  Click **Reset Token** to generate a new bot token. **Copy this token immediately**; you will need it for your environment variables.
 
-2. **Manual Deploys:**
-   If you need to redeploy an existing commit (e.g., after changing an environment variable), you can trigger a manual
-   deploy from the Render dashboard by going to the "Events" tab and clicking "Manual Deploy" -> "Deploy latest commit".
+#### 2. Supabase Database
+1.  In your [Supabase Dashboard](https://supabase.com/), create a new project.
+2.  Once the project is ready, navigate to the **SQL Editor** from the sidebar.
+3.  The `scripts/` directory in this repository contains several `.sql` files. You must run these to create the necessary database tables. Open each file, copy its contents, and execute it in the Supabase SQL Editor.
+4.  After running the scripts, go to **Project Settings > API**. Copy the **Project URL** and the **service_role Key**. You will need these for your environment variables.
 
-3. **Configure Environment Variables:**
-   Consult the env.example file to see the environment variables to add in the "Environment" section of your Render
-   service.
+### Step 3: Customize Core Bot Logic
+This is a critical step. The bot's core business logic is defined in `bot/config.py`. You must edit this file in your forked repository to match your server's specific needs.
 
-4. **Set up Uptime Monitoring:**
-    - In Render, find the public URL for your service (e.g., `your-bot.onrender.com`).
-    - In UptimeRobot, create a new monitor and set the "URL to monitor" to your Render service's URL.
-    - Set the monitor interval to 5 minutes to keep the free service from spinning down.
+1.  Navigate to the `bot/config.py` file in your forked repo and click the **Edit** (pencil) icon.
+2.  Carefully review and update the following sections:
+    * `HOUSE_ROLE_CONFIG` and `LATES_VIEW_GROUPS`: Update the role names and visibility rules. **Note:** Role names must be lowercase and match the names of the roles in your Discord server.
+    * `PERMIT_SPOTS` and `STAFF_SPOTS`: Define the parking spot numbers for your community.
+    * `STAFF_PARKING_BLACKOUTS`: Adjust the blackout times for staff parking.
+3.  **Commit the changes** directly to your main branch.
 
-Your bot is now deployed and will be kept online by UptimeRobot.
+### Step 4: Deploy to Render
+This project is configured for easy deployment on [Render](https://render.com/).
 
----
+1.  On the Render dashboard, click **New > Web Service**.
+2.  Connect your GitHub account and select your **forked repository**.
+3.  Render will detect the `render.yaml` file and pre-fill most settings.
+4.  Under **Environment**, you must add the environment variables from the `.env.example` file (e.g., `DISCORD_TOKEN`, `GUILD_ID`, `SUPABASE_URL`) using the credentials gathered in Step 2.
+5.  Click **Create Web Service**. Render will automatically build and deploy your bot.
 
-## 🚨 Troubleshooting
-
-First, go to the [Render](https://dashboard.render.com/) page for the Discord Web Bot, go to Logs, and see if there are
-any error logs that
-indicate why the service may have gone down. If there are, use those to troubleshoot. If you lack the expertise
-to fix the errors, you may at least be able to identify the functions that are causing issues and create a temporary
-PR to remove that functionality so that the bot will function properly while the issue can be resolved.
-
-If there are no error messages in the logs, find the monitor link (see "How to host the bot" below), and open
-the link in a new tab. Wait for it to build properly. Once you can refresh the monitor link and there are no
-building messages, but it just says "I'm alive", that indicates the service is back up.
-
-Sometimes down events just happen, and often they can be easily resolved just by pinging the monitor link.
+### Step 5: Invite the Bot and Keep it Alive
+1.  **Invite the Bot:** In the Discord Developer Portal, go to **OAuth2 > URL Generator**. Select the `bot` and `applications.commands` scopes, then grant it "Send Messages", "Embed Links", and "Read Message History" permissions. Use
