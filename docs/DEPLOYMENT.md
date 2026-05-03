@@ -24,11 +24,12 @@ You will need credentials from **Discord** and **Supabase**.
 4.  Under **Privileged Gateway Intents**, enable the **Server Members Intent**. This is required for the bot to see member roles.
 5.  Click **Reset Token** to generate a new bot token. **Copy this token immediately**; you will need it for your environment variables.
 
-#### 2. Supabase Database
-1.  In your [Supabase Dashboard](https://supabase.com/), create a new project.
-2.  Once the project is ready, navigate to the **SQL Editor** from the sidebar.
-3.  The `scripts/` directory in this repository contains several `.sql` files. You must run these to create the necessary database tables. Open each file, copy its contents, and execute it in the Supabase SQL Editor.
-4.  After running the scripts, go to **Project Settings > API**. Copy the **Project URL** and the **service_role Key**. You will need these for your environment variables.
+#### 2. Supabase Database:**
+1. In your Supabase Dashboard, create a new project.
+2. Once the project is ready, navigate to the **SQL Editor** from the sidebar.
+3. Go to **Project Settings > Database**. Under **Connection string**, copy the **URI**. You will need this for the `SUPABASE_DB_URL` environment variable.
+4. Go to **Project Settings > API**. Copy the **Project URL** and the **`service_role` Key**. You will need these for the `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` environment variables.
+5. **Note:** The database tables will be created automatically when the bot starts for the first time.
 
 ### Step 3: Customize Core Bot Logic
 This is a critical step. The bot's core business logic is defined in `bot/config.py`. You must edit this file in your forked repository to match your server's specific needs.
