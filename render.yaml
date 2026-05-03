@@ -3,6 +3,7 @@ services:
     name: kss-discord-bot
     env: python
     plan: free
+    buildCommand: pip install -r requirements.txt
     startCommand: python main.py
     envVars:
       - key: DISCORD_TOKEN
