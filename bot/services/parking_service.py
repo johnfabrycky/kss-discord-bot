@@ -658,6 +658,3 @@ class ParkingService:
             header = "❌ Not Offered"
 
         return header, (None if len(blocks) < 2 else blocks)
-
-    def get_staff_cutoff(self, now):
-        pass
