@@ -51,4 +51,21 @@ This project is configured for easy deployment on [Render](https://render.com/).
 5.  Click **Create Web Service**. Render will automatically build and deploy your bot.
 
 ### Step 5: Invite the Bot and Keep it Alive
-1.  **Invite the Bot:** In the Discord Developer Portal, go to **OAuth2 > URL Generator**. Select the `bot` and `applications.commands` scopes, then grant it "Send Messages", "Embed Links", and "Read Message History" permissions. Use
+1.  **Invite the Bot:** In the Discord Developer Portal, go to **OAuth2 > URL Generator**. Select the `bot` and `applications.commands` scopes, then grant it "Send Messages", "Embed Links", and "Read Message History" permissions. Use the generated URL to add the bot to your server.
+
+2.  **Keep Alive (Free Tier):** Render's free web services spin down after 15 minutes of inactivity. To keep the bot online 24/7, use a free service like UptimeRobot to create an HTTP(s) monitor that pings your Render service URL (e.g., `your-bot.onrender.com`) every 5-10 minutes.
+
+---
+
+## Local Development Setup (Optional)
+
+Follow these steps if you want to run the bot on your own computer for development or testing.
+
+### Step 1: Prerequisites
+
+-   All prerequisites from the Cloud Deployment section.
+-   Git installed on your machine.
+
+### Step 2: Clone and Configure
+
+1.  **Clone the repository:**
