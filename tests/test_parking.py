@@ -622,6 +622,36 @@ class ParkingServiceTests(unittest.TestCase):
 
         self.assertTrue(service.is_blackout(start, end))
 
+    def test_get_staff_cutoff_calculates_correct_window(self):
+        """Verify get_staff_cutoff returns the correct end-of-window datetime."""
+        service = ParkingService(supabase=MagicMock())
+        tz = parking_module.LOCAL_TZ
+
+        # Scenario 1: Weekday (Monday) -> Midnight next day
+        now_mon = datetime(2023, 10, 23, 10, 0, tzinfo=tz)  # A Monday
+        expected_mon = datetime(2023, 10, 24, 0, 0, tzinfo=tz)
+        self.assertEqual(service.get_staff_cutoff(now_mon), expected_mon)
+
+        # Scenario 2: Friday -> 2 AM Saturday
+        now_fri = datetime(2023, 10, 27, 10, 0, tzinfo=tz)  # A Friday
+        expected_fri = datetime(2023, 10, 28, 2, 0, tzinfo=tz)
+        self.assertEqual(service.get_staff_cutoff(now_fri), expected_fri)
+
+        # Scenario 3: Saturday -> 2 AM Sunday
+        now_sat = datetime(2023, 10, 28, 10, 0, tzinfo=tz)  # A Saturday
+        expected_sat = datetime(2023, 10, 29, 2, 0, tzinfo=tz)
+        self.assertEqual(service.get_staff_cutoff(now_sat), expected_sat)
+
+        # Scenario 4: Early Sunday (before 2 AM) -> 2 AM Sunday
+        now_early_sun = datetime(2023, 10, 29, 1, 0, tzinfo=tz)  # Sunday 1 AM
+        expected_early_sun = datetime(2023, 10, 29, 2, 0, tzinfo=tz)
+        self.assertEqual(service.get_staff_cutoff(now_early_sun), expected_early_sun)
+
+        # Scenario 5: Sunday after 2 AM -> Midnight Monday
+        now_sun = datetime(2023, 10, 29, 10, 0, tzinfo=tz)  # Sunday 10 AM
+        expected_sun = datetime(2023, 10, 30, 0, 0, tzinfo=tz)
+        self.assertEqual(service.get_staff_cutoff(now_sun), expected_sun)
+
     def test_save_offer_spot_preference_updates_user_spot(self):
         service = ParkingService(supabase=MagicMock())
         query = MagicMock()
