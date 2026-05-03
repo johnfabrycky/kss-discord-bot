@@ -22,6 +22,20 @@ EXTENSIONS = [
 ]
 LOCAL_TZ = pytz.timezone("America/Chicago")
 
+# --- Lates System Settings ---
+# Role names should be lowercase. These are used to identify a user's house.
+HOUSE_ROLE_CONFIG = {
+    "koinonian": "koinonian",
+    "stratfordite": "stratfordite",
+    "suttonite": "suttonite",
+}
+# Defines which houses can see each other's late plates.
+# Each tuple is a group. Houses in the same group can see each other's lates.
+LATES_VIEW_GROUPS = [
+    ("koinonian",),  # Koinonian can only see their own lates
+    ("stratfordite", "suttonite"),  # Stratford and Sutton can see each other's lates
+]
+
 
 # --- Parking System Settings ---
 PERMIT_SPOTS = list(range(1, 34)) + list(range(41, 47))

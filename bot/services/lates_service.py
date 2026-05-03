@@ -3,6 +3,8 @@ import os
 
 import aiohttp
 
+from bot.config import HOUSE_ROLE_CONFIG, LATES_VIEW_GROUPS
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,13 +30,10 @@ class LatesService:
     @staticmethod
     def get_user_house(member):
         """Return the caller's house role slug, if present."""
-        role_names = [role.name.lower() for role in member.roles]
-        if "koinonian" in role_names:
-            return "koinonian"
-        if "stratfordite" in role_names:
-            return "stratfordite"
-        if "suttonite" in role_names:
-            return "suttonite"
+        role_names = {role.name.lower() for role in member.roles}
+        for key, role_name in HOUSE_ROLE_CONFIG.items():
+            if role_name in role_names:
+                return key
         return None
 
     async def perform_cleanup(self, day_to_clean=None):
@@ -63,9 +62,16 @@ class LatesService:
 
     async def get_visible_lates(self, house, day, meal):
         """Return lates visible to the caller's house grouping instantly from memory."""
-        target_roles = (
-            ["koinonian"] if house == "koinonian" else ["stratfordite", "suttonite"]
-        )
+        # Find the group the user's house belongs to and get all roles in that group.
+        target_roles = [
+            HOUSE_ROLE_CONFIG.get(house)
+        ]  # Default to just the user's own house
+        for group in LATES_VIEW_GROUPS:
+            if house in group:
+                target_roles = [
+                    HOUSE_ROLE_CONFIG.get(h) for h in group if h in HOUSE_ROLE_CONFIG
+                ]
+                break
 
         return [
             late

@@ -2,13 +2,12 @@ import logging
 from datetime import datetime, time
 
 import discord
-import pytz
 from discord import app_commands
 from discord.ext import commands, tasks
 
+from bot.config import LOCAL_TZ
 from bot.services.lates_service import LatesService
 
-local_tz = pytz.timezone("America/Chicago")
 logger = logging.getLogger(__name__)
 
 
@@ -39,12 +38,12 @@ class Lates(commands.Cog):
         """Return the caller's house role slug, if present."""
         return self.service.get_user_house(member)
 
-    @tasks.loop(time=time(hour=0, minute=0, tzinfo=local_tz))
+    @tasks.loop(time=time(hour=0, minute=0, tzinfo=LOCAL_TZ))
     async def cleanup_loop(self):
         """Trigger nightly cleanup for the previous day's temporary lates."""
         from datetime import timedelta
 
-        now_chicago = datetime.now(local_tz)
+        now_chicago = datetime.now(LOCAL_TZ)
         yesterday = now_chicago - timedelta(days=1)
         yesterday_name = yesterday.strftime("%A")
         print(
