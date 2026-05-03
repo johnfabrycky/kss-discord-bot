@@ -1,51 +1,38 @@
-# Deployment Guide
+# Deployment & Setup Guide
 
-This guide explains how to deploy and run the Discord bot, both locally for development and on the cloud for production.
+This guide provides comprehensive instructions for setting up and deploying the bot, from a local development environment to a production cloud service.
 
-## Local Development Setup
+## 1. Prerequisites
 
-### 1. Prerequisites
+Before you begin, ensure you have the following:
 
-- Python 3.10 or higher
-- A Discord bot token
-- A Supabase project for the database
+- Python 3.8 or higher.
+- A Discord account with permissions to create applications and add bots to a server.
+- A free [Supabase](https://supabase.com/) account for the database.
+- [Git](https://git-scm.com/downloads) installed on your machine.
 
-### 2. Setup
+## 2. Local Setup & Configuration
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/your-username/your-repo-name.git
-   cd your-repo-name
-   ```
+### Step 2.1: Clone the Repository
 
-2. **Install dependencies:**
-   ```bash
-   pip install -r ../requirements.txt
-   ```
-
-3. **Set up environment variables:**
-   Create a `.env` file in the root of the project and add the following variables:
-   ```
-   DISCORD_TOKEN=your_discord_bot_token
-   SUPABASE_URL=your_supabase_url
-   SUPABASE_SERVICE_KEY=your_supabase_service_key
-   ```
-   You can find the Supabase URL and service key in your Supabase project settings.
-
-4. **Set up the database:**
-   In your Supabase project, go to the "SQL Editor" and run the SQL scripts located in the `docs/sql/` directory in the
-   following order:
-    1. `01_parking.sql`
-    2. `02_meals.sql`
-    3. `03_lates.sql`
-    4. `04_feedback.sql`
-
-### 3. Running the Bot
-
-Once the setup is complete, you can run the bot using the following command:
+First, clone the project repository to your local machine:
 
 ```bash
-python main.py
+git clone https://github.com/johnfabrycky/kss-discord-bot.git
+cd kss-discord-bot
+```
+
+### Step 2.2: Install Dependencies
+
+It's highly recommended to use a virtual environment to manage project dependencies.
+
+```bash
+# Create and activate a virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows, use: venv\Scripts\activate
+
+# Install the required packages
+pip install -r requirements.txt
 ```
 
 The bot should now be online and ready to respond to commands in your Discord server.
