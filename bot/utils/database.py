@@ -11,10 +11,9 @@ async def ensure_tables_exist(db_url: str):
     Connects directly to PostgreSQL to run schema setup scripts.
     Reads all .sql files from the docs/sql directory and executes them in order.
     """
-    # 1. Dynamically find the project root (assuming this script is inside /bot or similar)
-    # Adjust the '.parent' chain depending on exactly where this Python file lives.
-    # If this file is in your project root, just use Path(__file__).resolve().parent
-    base_dir = Path(__file__).resolve().parent.parent
+    # 1. Dynamically find the project root.
+    # This file is in /bot/utils, so we need to go up three levels to get to the root.
+    base_dir = Path(__file__).resolve().parent.parent.parent
     sql_dir = base_dir / "docs" / "sql"
 
     if not sql_dir.exists():
